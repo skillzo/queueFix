@@ -5,8 +5,10 @@ import {
   MapPin,
   ExternalLink,
   Clock,
+  ChevronRight,
 } from "lucide-react";
 import { mockCompanies } from "../data/mockData";
+import Button from "../components/Button";
 
 export default function CompanyDetails() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -32,178 +34,153 @@ export default function CompanyDetails() {
     );
   }
 
-  // Calculate queue preview segments (visual representation)
-  const totalSegments = Math.max(company.currentQueueSize, 33);
-  const nextCount = Math.min(3, company.currentQueueSize);
-  const segment10Count = Math.min(
-    10,
-    Math.max(0, company.currentQueueSize - 3)
-  );
-  const segment20Count = Math.min(
-    20,
-    Math.max(0, company.currentQueueSize - 13)
-  );
-  const restCount = Math.max(0, company.currentQueueSize - 33);
-
-  const nextPercent = (nextCount / totalSegments) * 100;
-  const segment10Percent = (segment10Count / totalSegments) * 100;
-  const segment20Percent = (segment20Count / totalSegments) * 100;
-  const restPercent = (restCount / totalSegments) * 100;
-
   return (
-    <div className="min-h-screen bg-white pb-24">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 bg-white z-10">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <ChevronLeft size={24} />
-        </button>
+    <div className="min-h-screen max-w-3xl w-full mx-auto px-8 py-12 fbc flex-col gap-4">
+      <div>
+        {/* Header */}
+        <header className=" flex items-center justify-between px-4 py-3 border-b border-gray-200 sticky top-0 z-10 w-full">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
 
-        <h1 className="text-base font-semibold text-gray-900 flex-1 text-center px-4 truncate">
-          {company.name}
-        </h1>
-
-        <button className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
-          <MoreVertical size={24} />
-        </button>
-      </header>
-
-      <div className="px-4 pt-6 pb-6 space-y-4">
-        {/* Company Icon */}
-        <div className="flex justify-center mb-2">
-          <div className="w-20 h-20 bg-white border-2 border-blue-100 rounded-full flex items-center justify-center text-4xl shadow-sm">
-            {company.imageUrl || "🏢"}
+          {/* Company Icon */}
+          <div className="flex justify-center mb-2">
+            <div className="w-10 h-10 bg-white border-2 border-blue-100 rounded-full flex items-center justify-center text-4xl shadow-sm">
+              {company.imageUrl || "🏢"}
+            </div>
           </div>
-        </div>
 
-        {/* Company Description Card */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+          <button className="w-10 h-10 flex items-center justify-center text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
+            <MoreVertical size={24} />
+          </button>
+        </header>
+
+        <div className="px-4 pt-6 pb-6 space-y-6 mt-8">
+          <h1 className="text-5xl font-black text-gray-900 flex-1 truncate">
+            {company.name}
+          </h1>
+
           <p className="text-gray-700 text-sm leading-relaxed">
             {company.description || "No description available."}
           </p>
-        </div>
 
-        {/* Company Details Card */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-4">
-          {/* Address */}
-          <div className="flex items-center gap-3">
-            <MapPin size={18} className="text-gray-600 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-gray-900 text-sm font-medium truncate">
-                {company.address}
-              </p>
-            </div>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
-              <ExternalLink size={18} />
-            </button>
-          </div>
+          {/* Company Details Card */}
+          <div className="space-y-4">
+            {/* Address */}
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 fcc rounded-lg bg-gray-200">
+                <MapPin size={20} className="text-gray-600 shrink-0" />
+              </div>
 
-          {/* Hours */}
-          {company.hours && (
-            <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
-              <Clock size={18} className="text-gray-600 shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-0.5">
-                <p className="text-gray-900 text-sm font-medium">
-                  {company.hours.weekdays}
-                </p>
-                <p className="text-gray-900 text-sm font-medium">
-                  {company.hours.weekends}
+              <div className="flex-1 min-w-0">
+                <p className="text-gray-900 text-sm font-medium truncate">
+                  {company.address}
                 </p>
               </div>
+              <button className="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
+                <ExternalLink size={20} color="#000" />
+              </button>
             </div>
-          )}
-        </div>
 
-        {/* Queue Information Card */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
-            People in Queue
-          </h2>
-          <div className="text-4xl font-bold text-gray-900 mb-1">
-            {company.currentQueueSize}
-          </div>
-          <p className="text-gray-500 text-sm">
-            Estimated Wait: {company.estimatedWaitTime} mins
-          </p>
-        </div>
-
-        {/* Queue Preview */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-4">
-            Queue Preview
-          </h2>
-
-          {/* Progress Bar */}
-          <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-3">
-            <div className="h-full flex">
-              {nextCount > 0 && (
-                <div
-                  className="bg-green-500 h-full"
-                  style={{ width: `${nextPercent}%` }}
-                ></div>
-              )}
-              {segment10Count > 0 && (
-                <div
-                  className="bg-blue-500 h-full"
-                  style={{ width: `${segment10Percent}%` }}
-                ></div>
-              )}
-              {segment20Count > 0 && (
-                <div
-                  className="bg-blue-500 h-full"
-                  style={{ width: `${segment20Percent}%` }}
-                ></div>
-              )}
-              {restCount > 0 && (
-                <div
-                  className="bg-gray-300 h-full rounded-r-full"
-                  style={{ width: `${restPercent}%` }}
-                ></div>
-              )}
-            </div>
+            {/* Hours */}
+            {company.hours && (
+              <div className="flex items-start gap-3 pt-4 border-t border-gray-100">
+                <div className="h-10 w-10 fcc rounded-lg bg-gray-200">
+                  <Clock size={20} className="text-gray-600 shrink-0 mt-0.5" />
+                </div>
+                <div className="flex-1 space-y-0.5">
+                  <p className="text-gray-900 text-sm font-medium">
+                    {company.hours.weekdays}
+                  </p>
+                  <p className="text-gray-900 text-sm font-medium">
+                    {company.hours.weekends}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Labels */}
-          <div className="flex items-center gap-4 flex-wrap">
-            {nextCount > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-700">Next</span>
+          {/* Queue Information Card */}
+          <div className="bg-white fcc flex-col rounded-xl p-16 border border-gray-100 shadow-sm">
+            <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
+              People in Queue
+            </h2>
+
+            <div className="text-6xl font-black text-gray-900  my-5">
+              {company.currentQueueSize}
+            </div>
+
+            <p className="text-gray-500 text-sm">
+              Estimated Wait: {company.estimatedWaitTime} mins
+            </p>
+          </div>
+
+          {/* Queue Preview */}
+          <div className="">
+            <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-4">
+              Queue Preview
+            </h2>
+
+            {/* Progress Bar */}
+            <div className="w-full h-4 bg-gray-300 rounded-full overflow-hidden mb-4">
+              <div className="h-full flex">
+                <div
+                  className="bg-green-500 h-full transition-all duration-300"
+                  style={{ width: `10%` }}
+                ></div>
+
+                <div
+                  className="bg-[#17a2b8] h-full transition-all duration-300"
+                  style={{ width: `15%` }}
+                ></div>
+
+                <div
+                  className="bg-[#6cb2eb] h-full transition-all duration-300"
+                  style={{ width: `35%` }}
+                ></div>
+
+                <div
+                  className="bg-[#ced4da] h-full transition-all duration-300"
+                  style={{ width: `40%` }}
+                ></div>
               </div>
-            )}
-            {segment10Count > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-700">10</span>
+            </div>
+
+            {/* Labels */}
+            <div className="w-full flex items-center justify-between">
+              <div className="flex items-center gap-2 w-[10%]">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">Next</span>
               </div>
-            )}
-            {segment20Count > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-700">20</span>
+              <div className="flex items-center gap-2 w-[15%] ml-3">
+                <div className="w-3 h-3 bg-[#17a2b8] rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">10</span>
               </div>
-            )}
-            {restCount > 0 && (
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <span className="text-xs font-medium text-gray-700">Rest</span>
+              <div className="flex items-center gap-2 w-[35%] ml-3">
+                <div className="w-3 h-3 bg-[#6cb2eb] rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">20</span>
               </div>
-            )}
+              <div className="flex items-center gap-2 w-[40%] ml-3">
+                <div className="w-3 h-3 bg-[#ced4da] rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">Rest</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Join Queue Button - Fixed at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-        <button
-          onClick={() => navigate(`/join/${company.id}`)}
-          className="w-full py-3.5 bg-blue-500 text-white rounded-xl text-base font-semibold transition-all duration-150 hover:bg-blue-600 active:scale-[0.98] shadow-md"
-        >
-          Join Queue
-        </button>
-      </div>
+      <Button
+        onClick={() => navigate(`/join/${company.id}`)}
+        fullWidth
+        variant="primary"
+        icon={ChevronRight}
+        iconPosition="right"
+      >
+        Join Queue
+      </Button>
     </div>
   );
 }
