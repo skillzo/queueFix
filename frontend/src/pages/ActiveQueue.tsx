@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Layers, User, LogOut, Bell } from "lucide-react";
-import { mockCompanies } from "../data/mockData";
+import GetReady from "../components/GetReady";
 
 export default function ActiveQueue() {
   const { queueNumber } = useParams<{ queueNumber: string }>();
@@ -11,6 +11,10 @@ export default function ActiveQueue() {
   // Get company name from location state or use a default
   const companyName = location.state?.companyName || "Queue";
   const [timeAgo, setTimeAgo] = useState("10s ago");
+  
+  // State to control GetReady component visibility
+  const [showGetReady, setShowGetReady] = useState(false);
+  const [peopleAhead, setPeopleAhead] = useState(5);
 
   // Format queue number to match design (A-154 format)
   const formattedQueueNumber = queueNumber ? `A-${queueNumber}` : "N/A";
@@ -20,6 +24,16 @@ export default function ActiveQueue() {
     const interval = setInterval(() => {
       const seconds = Math.floor(Math.random() * 60);
       setTimeAgo(`${seconds}s ago`);
+      
+      // Simulate queue progression - decrease people ahead
+      setPeopleAhead((prev) => {
+        const newValue = Math.max(0, prev - 1);
+        // Show GetReady when 3 or fewer people ahead
+        if (newValue <= 3 && newValue > 0) {
+          setShowGetReady(true);
+        }
+        return newValue;
+      });
     }, 10000);
 
     return () => clearInterval(interval);
@@ -36,6 +50,18 @@ export default function ActiveQueue() {
     { number: "A-153", status: "waiting" },
     { number: formattedQueueNumber, status: "yours" },
   ];
+
+  // Show GetReady component if conditions are met
+  if (showGetReady) {
+    return (
+      <GetReady
+        queueNumber={formattedQueueNumber}
+        companyName={companyName}
+        peopleAhead={peopleAhead}
+        onClose={() => setShowGetReady(false)}
+      />
+    );
+  }
 
   return (
     <div className="bg-gray-50">
@@ -74,6 +100,7 @@ export default function ActiveQueue() {
               </h3>
               <p className="text-sm text-gray-400 mb-2">updated {timeAgo}</p>
               <p className="text-sm text-gray-600">Approx. 25 minutes wait</p>
+              <p className="text-sm text-gray-600 mt-2">People ahead: {peopleAhead}</p>
             </div>
 
             <button
@@ -87,6 +114,14 @@ export default function ActiveQueue() {
             <button className="w-full py-3.5 bg-blue-100 text-primary rounded-lg text-base font-semibold flex items-center justify-center gap-2 transition-all duration-150 hover:bg-blue-200">
               <Bell size={20} />
               Notifications
+            </button>
+            
+            {/* Debug button to test GetReady component */}
+            <button
+              onClick={() => setShowGetReady(true)}
+              className="w-full py-3.5 bg-orange-500 text-white rounded-lg text-base font-semibold flex items-center justify-center gap-2 transition-all duration-150 hover:bg-orange-600"
+            >
+              Test Get Ready View
             </button>
           </div>
 

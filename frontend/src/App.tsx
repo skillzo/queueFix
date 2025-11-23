@@ -5,6 +5,7 @@ import JoinQueue from "./pages/JoinQueue";
 import ActiveQueue from "./pages/ActiveQueue";
 import YoureNext from "./pages/YoureNext";
 import QueueCompleted from "./pages/QueueCompleted";
+import NavigationPage from "./pages/NavigationPage";
 import AdminLogin from "./pages/admin/AdminLogin";
 import QueueDashboard from "./pages/admin/QueueDashboard";
 import "./App.css";
@@ -18,7 +19,11 @@ function App() {
         <Route path="/join/:companyId" element={<JoinQueue />} />
         <Route path="/queue/:queueNumber" element={<ActiveQueue />} />
         <Route path="/queue/:queueNumber/next" element={<YoureNext />} />
-        <Route path="/queue/:queueNumber/complete" element={<QueueCompleted />} />
+        <Route
+          path="/queue/:queueNumber/complete"
+          element={<QueueCompleted />}
+        />
+        <Route path="/queue/:queueNumber/navigate" element={<NavigationPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<QueueDashboard />} />
       </Routes>
