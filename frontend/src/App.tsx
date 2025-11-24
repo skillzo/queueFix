@@ -23,6 +23,7 @@ function App() {
           path="/queue/:queueNumber/complete"
           element={<QueueCompleted />}
         />
+        
         <Route path="/queue/:queueNumber/navigate" element={<NavigationPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<QueueDashboard />} />
