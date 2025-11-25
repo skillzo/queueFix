@@ -44,6 +44,15 @@ export class Company {
   @Column({ nullable: true })
   phoneNumber?: string;
 
+  @Column({ type: "int", default: 1 })
+  serviceTimeMinutes: number;
+
+  @Column({ type: "int", nullable: true, default: 100 })
+  maxQueueCapacity?: number;
+
+  @Column({ type: "varchar", length: 10, default: "A", unique: true })
+  queuePrefix: string;
+
   @UpdateDateColumn()
   updatedAt: Date;
 

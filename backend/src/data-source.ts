@@ -1,13 +1,14 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
+import { ENV } from "./config/ENV";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
-  host: process.env.DB_HOST || "localhost",
-  port: parseInt(process.env.DB_PORT || "5432"),
-  username: process.env.DB_USERNAME || "postgres",
-  password: process.env.DB_PASSWORD || "postgres",
-  database: process.env.DB_NAME || "queuefix",
+  host: ENV.DB.HOST,
+  port: parseInt(ENV.DB.PORT as string),
+  username: ENV.DB.USERNAME,
+  password: ENV.DB.PASSWORD,
+  database: ENV.DB.NAME,
   synchronize: false,
   logging: process.env.NODE_ENV === "development",
   entities: ["src/entities/**/*.ts"],
