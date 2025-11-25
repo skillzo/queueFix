@@ -10,9 +10,15 @@ router.post(
   queueController.joinQueue.bind(queueController)
 );
 
+// Join queue (multiple users)
+router.post(
+  "/:companyId/join-many",
+  queueController.joinQueueMany.bind(queueController)
+);
+
 // Get user's position in queue
 router.get(
-  "/:companyId/position/:userId",
+  "/:companyId/position",
   queueController.getPosition.bind(queueController)
 );
 
@@ -30,7 +36,7 @@ router.post(
 
 // Leave queue
 router.post(
-  "/:companyId/leave/:userId",
+  "/:companyId/leave",
   queueController.leaveQueue.bind(queueController)
 );
 

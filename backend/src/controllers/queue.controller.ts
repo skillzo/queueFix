@@ -6,9 +6,20 @@ import { StatusCodes } from "http-status-codes";
 import { requestValidation } from "../utils/validateRequest";
 
 const JoinQueueSchema = z.object({
-  userId: z.uuid().optional(),
-  phoneNumber: z.string().min(1),
+  phoneNumber: z.string().min(10).max(15),
   fullName: z.string().min(1),
+});
+
+const JoinQueueManySchema = z.object({
+  users: z
+    .array(
+      z.object({
+        phoneNumber: z.string().min(10).max(15),
+        fullName: z.string().min(1),
+      })
+    )
+    .min(1)
+    .max(100), // Limit to 50 users per request
 });
 
 export class QueueController {
@@ -28,19 +39,6 @@ export class QueueController {
         return res.status(StatusCodes.BAD_REQUEST).json(validationResponse);
       }
 
-      // Ensure at least userId or phoneNumber is provided
-      if (!data.userId && !data.phoneNumber) {
-        return res
-          .status(StatusCodes.BAD_REQUEST)
-          .json(
-            ServiceResponse.failure(
-              "Either userId or phoneNumber must be provided",
-              undefined,
-              StatusCodes.BAD_REQUEST
-            )
-          );
-      }
-
       const response = await this.queueService.joinQueue(companyId, data);
       res.status(response.statusCode).json(response);
     } catch (error) {
@@ -57,23 +55,56 @@ export class QueueController {
     }
   }
 
-  async getPosition(req: Request, res: Response) {
-    const { companyId, userId } = req.params;
+  async joinQueueMany(req: Request, res: Response) {
+    const { companyId } = req.params;
+    const data = req.body;
 
     try {
-      if (!userId) {
+      const validationResponse = requestValidation(JoinQueueManySchema, data);
+      if (!validationResponse.success) {
+        return res.status(StatusCodes.BAD_REQUEST).json(validationResponse);
+      }
+
+      const response = await this.queueService.joinQueueMany(
+        companyId,
+        data.users
+      );
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      console.error("Error joining queue (many):", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to join queue",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
+
+  async getPosition(req: Request, res: Response) {
+    const { companyId } = req.params;
+    const { phoneNumber } = req.query;
+
+    try {
+      if (!phoneNumber || typeof phoneNumber !== "string") {
         return res
           .status(StatusCodes.BAD_REQUEST)
           .json(
             ServiceResponse.failure(
-              "UserId is required",
+              "Phone number is required",
               undefined,
               StatusCodes.BAD_REQUEST
             )
           );
       }
 
-      const response = await this.queueService.getPosition(userId, companyId);
+      const response = await this.queueService.getPosition(
+        phoneNumber,
+        companyId
+      );
       res.status(response.statusCode).json(response);
     } catch (error) {
       console.error("Error getting position:", error);
@@ -130,22 +161,26 @@ export class QueueController {
   }
 
   async leaveQueue(req: Request, res: Response) {
-    const { companyId, userId } = req.params;
+    const { companyId } = req.params;
+    const { phoneNumber } = req.query;
 
     try {
-      if (!userId) {
+      if (!phoneNumber || typeof phoneNumber !== "string") {
         return res
           .status(StatusCodes.BAD_REQUEST)
           .json(
             ServiceResponse.failure(
-              "UserId is required",
+              "Phone number is required",
               undefined,
               StatusCodes.BAD_REQUEST
             )
           );
       }
 
-      const response = await this.queueService.leaveQueue(userId, companyId);
+      const response = await this.queueService.leaveQueue(
+        phoneNumber,
+        companyId
+      );
       res.status(response.statusCode).json(response);
     } catch (error) {
       console.error("Error leaving queue:", error);

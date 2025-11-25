@@ -8,12 +8,14 @@ import QueueCompleted from "./pages/QueueCompleted";
 import NavigationPage from "./pages/NavigationPage";
 import AdminLogin from "./pages/admin/AdminLogin";
 import QueueDashboard from "./pages/admin/QueueDashboard";
+import Login from "./pages/Login";
 import "./App.css";
 
 function App() {
   return (
     <div className="">
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<CompanyList />} />
         <Route path="/company/:companyId" element={<CompanyDetails />} />
         <Route path="/join/:companyId" element={<JoinQueue />} />
@@ -23,8 +25,11 @@ function App() {
           path="/queue/:queueNumber/complete"
           element={<QueueCompleted />}
         />
-        
-        <Route path="/queue/:queueNumber/navigate" element={<NavigationPage />} />
+
+        <Route
+          path="/queue/:queueNumber/navigate"
+          element={<NavigationPage />}
+        />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<QueueDashboard />} />
       </Routes>

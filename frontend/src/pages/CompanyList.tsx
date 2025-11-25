@@ -1,27 +1,78 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Users, Clock, ChevronRight } from "lucide-react";
-import { mockCompanies } from "../data/mockData";
 import Button from "../components/Button";
+import type { Company } from "../types";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: Company[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
 
 export default function CompanyList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery.trim()) {
+          params.append("search", searchQuery.trim());
+        }
+        if (selectedCategory !== "All") {
+          params.append("category", selectedCategory);
+        }
+        params.append("limit", "100");
+
+        const response = await fetch(
+          `${API_BASE_URL}/api/v1/companies?${params.toString()}`
+        );
+        const result: ApiResponse = await response.json();
+
+        if (result.success && result.data) {
+          // Map API response to Company type with default values for missing fields
+          const mappedCompanies: Company[] = result.data.data.map((company) => ({
+            ...company,
+            currentQueueSize: 0, // TODO: Get from queue service
+            estimatedWaitTime: 0, // TODO: Calculate from queue
+          }));
+          setCompanies(mappedCompanies);
+        } else {
+          setError(result.message || "Failed to fetch companies");
+        }
+      } catch (err) {
+        setError("Failed to load companies. Please try again.");
+        console.error("Error fetching companies:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, [searchQuery, selectedCategory]);
 
   const categories = [
     "All",
-    ...Array.from(new Set(mockCompanies.map((c) => c.category))),
+    ...Array.from(new Set(companies.map((c) => c.category))),
   ];
-
-  const filteredCompanies = mockCompanies.filter((company) => {
-    const matchesSearch =
-      company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "All" || company.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -68,14 +119,22 @@ export default function CompanyList() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompanies.length === 0 ? (
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-16">
+              <p className="text-gray-500 text-lg">Loading companies...</p>
+            </div>
+          ) : error ? (
+            <div className="col-span-full flex items-center justify-center py-16">
+              <p className="text-red-500 text-lg">{error}</p>
+            </div>
+          ) : companies.length === 0 ? (
             <div className="col-span-full flex items-center justify-center py-16">
               <p className="text-gray-500 text-lg">
                 No companies found matching your search.
               </p>
             </div>
           ) : (
-            filteredCompanies.map((company) => (
+            companies.map((company) => (
               <div
                 key={company.id}
                 className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 cursor-pointer transition-all duration-150 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 flex flex-col"

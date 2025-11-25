@@ -12,6 +12,24 @@ export interface CompanyHours {
   weekends: string;
 }
 
+export enum CompanyCategoryEnum {
+  BANKING = "Banking",
+  GOVERNMENT_SERVICES = "Government Services",
+  IDENTITY_ENROLLMENT_NIN = "Identity Enrollment (NIN)",
+  DRIVER_LICENSE_ROAD_SAFETY_FRSC = "Driver License & Road Safety (FRSC)",
+  IMMIGRATION_PASSPORT_OFFICES = "Immigration & Passport Offices",
+  TELECOM_SUPPORT_CENTERS = "Telecom Support Centers",
+  HOSPITALS_CLINICS = "Hospitals & Clinics",
+  PHARMACIES = "Pharmacies",
+  DIAGNOSTICS_LABS = "Diagnostics & Labs",
+  TRANSPORT_TERMINALS = "Transport & Terminals",
+  RETAIL_SUPERMARKETS = "Retail & Supermarkets",
+  COURIER_DELIVERY_OFFICES = "Courier & Delivery Offices",
+  EMBASSIES_VISA_CENTERS = "Embassies & Visa Centers",
+  VEHICLE_SERVICE_CENTERS = "Vehicle Service Centers",
+  SCHOOLS_UNIVERSITY_CENTERS = "Schools & University Centers",
+}
+
 @Entity("companies")
 export class Company {
   @PrimaryGeneratedColumn("uuid")

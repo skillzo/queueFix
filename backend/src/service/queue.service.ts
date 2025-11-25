@@ -5,10 +5,10 @@ import { Company } from "../entities/company.entity";
 import { redisService } from "./redis.service";
 import { ServiceResponse } from "../utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
+import { randomUUID } from "crypto";
 
 interface JoinQueueData {
-  userId?: string;
-  phoneNumber?: string;
+  phoneNumber: string;
   fullName: string;
 }
 
@@ -104,7 +104,7 @@ export class QueueService {
       // Create QueueEntry in PostgreSQL
       const queueEntry = this.queueEntryRepository.create({
         companyId,
-        userId: userData.userId,
+        userId: randomUUID(),
         phoneNumber: userData.phoneNumber,
         fullName: userData.fullName,
         queueNumber,
@@ -145,8 +145,151 @@ export class QueueService {
     }
   }
 
+  async joinQueueMany(
+    companyId: string,
+    usersData: JoinQueueData[]
+  ): Promise<ServiceResponse<(QueueEntry & { position: number })[]>> {
+    try {
+      const client = redisService.getClient();
+
+      // Get company details
+      const company = await this.companyRepository.findOne({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        return ServiceResponse.failure(
+          "Company not found",
+          undefined,
+          StatusCodes.NOT_FOUND
+        );
+      }
+
+      if (!usersData || usersData.length === 0) {
+        return ServiceResponse.failure(
+          "At least one user is required",
+          undefined,
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      // Check queue capacity
+      const queueListKey = redisService.getQueueListKey(companyId);
+      const currentQueueSize = await client.lLen(queueListKey);
+      const maxCapacity = company.maxQueueCapacity || 100;
+
+      if (currentQueueSize + usersData.length > maxCapacity) {
+        return ServiceResponse.failure(
+          `Queue capacity exceeded. Only ${
+            maxCapacity - currentQueueSize
+          } spots available`,
+          undefined,
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      // Check for duplicates in the input array
+      const phoneNumbers = usersData.map((u) => u.phoneNumber);
+      const phoneNumberCounts = new Map<string, number>();
+      const duplicates: string[] = [];
+
+      phoneNumbers.forEach((phone) => {
+        const count = phoneNumberCounts.get(phone) || 0;
+        phoneNumberCounts.set(phone, count + 1);
+        if (count === 1) {
+          // This is the second occurrence, add to duplicates
+          duplicates.push(phone);
+        }
+      });
+
+      if (duplicates.length > 0) {
+        return ServiceResponse.failure(
+          `Duplicate phone numbers in the request: ${duplicates.join(", ")}`,
+          undefined,
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      // Check if any users are already in queue
+      const existingEntries = await this.queueEntryRepository.find({
+        where: {
+          companyId,
+          phoneNumber: In(phoneNumbers),
+          status: QueueEntryStatus.WAITING,
+        },
+      });
+
+      if (existingEntries.length > 0) {
+        const existingPhones = existingEntries.map((e) => e.phoneNumber);
+        return ServiceResponse.failure(
+          `Users with phone numbers ${existingPhones.join(
+            ", "
+          )} are already in the queue`,
+          undefined,
+          StatusCodes.BAD_REQUEST
+        );
+      }
+
+      const savedEntries: (QueueEntry & { position: number })[] = [];
+      let currentPosition = currentQueueSize;
+
+      // Process each user
+      for (const userData of usersData) {
+        currentPosition += 1;
+        const queueNumber = await this.generateQueueNumber(companyId);
+
+        // Create QueueEntry in PostgreSQL
+        const queueEntry = this.queueEntryRepository.create({
+          companyId,
+          userId: randomUUID(),
+          phoneNumber: userData.phoneNumber,
+          fullName: userData.fullName,
+          queueNumber,
+          position: currentPosition,
+          status: QueueEntryStatus.WAITING,
+        });
+
+        const savedEntry = await this.queueEntryRepository.save(queueEntry);
+
+        // Add to Redis list (right push to maintain order)
+        await client.rPush(queueListKey, savedEntry.id);
+
+        // Store entry details in Redis hash
+        const entryKey = redisService.getQueueEntryKey(
+          savedEntry.id,
+          companyId
+        );
+        await client.hSet(entryKey, {
+          id: savedEntry.id,
+          queueNumber: savedEntry.queueNumber,
+          fullName: savedEntry.fullName,
+          phoneNumber: savedEntry.phoneNumber || "",
+          position: savedEntry.position.toString(),
+        });
+
+        // Set expiration on hash (24 hours)
+        await client.expire(entryKey, 86400);
+
+        savedEntries.push({ ...savedEntry, position: savedEntry.position });
+      }
+
+      return ServiceResponse.success(
+        `Successfully added ${savedEntries.length} user(s) to queue`,
+        savedEntries,
+        StatusCodes.CREATED
+      );
+    } catch (error) {
+      console.error("Error joining queue (many):", error);
+      return ServiceResponse.failure(
+        "Failed to join queue",
+        error as Error,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
   async getPosition(
-    userId: string,
+    phoneNumber: string,
     companyId: string
   ): Promise<ServiceResponse<QueuePosition>> {
     try {
@@ -156,7 +299,7 @@ export class QueueService {
       const entry = await this.queueEntryRepository.findOne({
         where: {
           companyId,
-          userId,
+          phoneNumber,
           status: QueueEntryStatus.WAITING,
         },
       });
@@ -305,7 +448,7 @@ export class QueueService {
   }
 
   async leaveQueue(
-    userId: string,
+    phoneNumber: string,
     companyId: string
   ): Promise<ServiceResponse<null>> {
     try {
@@ -315,7 +458,7 @@ export class QueueService {
       const entry = await this.queueEntryRepository.findOne({
         where: {
           companyId,
-          userId,
+          phoneNumber,
           status: QueueEntryStatus.WAITING,
         },
       });

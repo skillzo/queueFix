@@ -4,11 +4,12 @@ import { CompanyService } from "../service/company.service";
 import { ServiceResponse } from "../utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 import { requestValidation } from "../utils/validateRequest";
+import { CompanyCategoryEnum } from "../entities/company.entity";
 
 const CreateCompanySchema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
-  category: z.string().min(1),
+  category: z.enum(CompanyCategoryEnum),
   imageUrl: z.url(),
   address: z.string().min(1),
   longitude: z.number(),

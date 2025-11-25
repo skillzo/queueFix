@@ -50,7 +50,6 @@ export class RedisService {
     });
   }
 
-  // Singleton pattern
   static getInstance(): RedisService {
     if (!RedisService.instance) {
       RedisService.instance = new RedisService();
