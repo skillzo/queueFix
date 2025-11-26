@@ -1,25 +1,14 @@
 import axios from "axios";
 import { API_BASE_URL } from "../utils/constants";
 import type { ApiResponse, Company, QueueEntry } from "../types";
-
-interface GetCompaniesParams {
-  search?: string;
-  category?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-interface JoinQueueParams {
-  fullName: string;
-  phoneNumber: string;
-}
-
-interface QueueStatus {
-  currentServing: number;
-  queueSize: number;
-  estimatedWaitMinutes: number;
-  isFull: boolean;
-}
+import type {
+  ServiceResponse,
+  GetCompaniesParams,
+  JoinQueueParams,
+  QueueListEntry,
+  QueuePosition,
+  QueueStatus,
+} from "../types/company";
 
 export const getCompanies = async (
   params?: GetCompaniesParams
@@ -48,10 +37,47 @@ export const getQueueStatus = async (
 export const joinQueue = async (
   companyId: string,
   params: JoinQueueParams
-): Promise<ApiResponse<QueueEntry>> => {
+): Promise<ServiceResponse<QueueEntry>> => {
   const queueResponse = await axios.post(
     `${API_BASE_URL}/queues/${companyId}/join`,
     params
   );
   return queueResponse?.data;
+};
+
+export const getQueueList = async (
+  companyId: string,
+  limit?: number
+): Promise<ServiceResponse<QueueListEntry[]>> => {
+  const response = await axios.get(`${API_BASE_URL}/queues/${companyId}/list`, {
+    params: limit ? { limit } : {},
+  });
+  return response?.data;
+};
+
+export const getQueuePosition = async (
+  companyId: string,
+  phoneNumber: string
+): Promise<ServiceResponse<QueuePosition>> => {
+  const response = await axios.get(
+    `${API_BASE_URL}/queues/${companyId}/position`,
+    {
+      params: { phoneNumber },
+    }
+  );
+  return response?.data;
+};
+
+export const leaveQueue = async (
+  companyId: string,
+  phoneNumber: string
+): Promise<ServiceResponse<null>> => {
+  const response = await axios.post(
+    `${API_BASE_URL}/queues/${companyId}/leave`,
+    null,
+    {
+      params: { phoneNumber },
+    }
+  );
+  return response?.data;
 };

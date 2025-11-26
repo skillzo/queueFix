@@ -59,7 +59,7 @@ export default function JoinQueue() {
       });
 
       if (result.success && result.data) {
-        setQueueEntry(result.data.data as QueueEntry);
+        setQueueEntry(result.data as QueueEntry);
       } else {
         setError(result.message || "Failed to join queue");
       }
@@ -150,7 +150,10 @@ export default function JoinQueue() {
                 ? queueEntry.queueNumber.split("-")[1] || queueEntry.queueNumber
                 : queueEntry.position.toString();
               navigate(`/queue/${queueNum}`, {
-                state: { companyName: company?.name },
+                state: {
+                  companyName: company?.name,
+                  companyId: companyId,
+                },
               });
             }}
             className="w-full py-3.5 bg-gray-200 text-gray-900 rounded-lg text-base font-semibold transition-all duration-150 hover:bg-gray-300"
