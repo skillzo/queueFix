@@ -1,21 +1,99 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle2, Clock } from "lucide-react";
 import type { QueueEntry } from "../types";
-import { mockCompanies } from "../data/mockData";
+import { getCompanyById, joinQueue } from "../api/companies.api";
+import type { Company } from "../types";
+import Button from "../components/Button";
 
 export default function JoinQueue() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const [company, setCompany] = useState<Company | null>(null);
+  const [queueEntry, setQueueEntry] = useState<QueueEntry | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phoneNumber: localStorage.getItem("phoneNumber") || "",
+  });
 
-  const company = mockCompanies.find((c) => c.id === companyId);
+  useEffect(() => {
+    const fetchCompany = async () => {
+      if (!companyId) return;
 
-  if (!company) {
+      setLoading(true);
+      try {
+        const result = await getCompanyById(companyId);
+        if (result.success && result.data) {
+          setCompany({
+            ...result.data,
+            currentQueueSize: 0,
+          });
+        } else {
+          setError(result.message || "Failed to fetch company");
+        }
+      } catch (err) {
+        setError("Failed to load company. Please try again.");
+        console.error("Error fetching company:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompany();
+  }, [companyId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyId) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await joinQueue(companyId, {
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+      });
+
+      if (result.success && result.data) {
+        setQueueEntry(result.data.data as QueueEntry);
+      } else {
+        setError(result.message || "Failed to join queue");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Failed to join queue. Please try again."
+      );
+      console.error("Error joining queue:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error && !company) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Company not found
+            {error || "Company not found"}
           </h1>
           <button
             onClick={() => navigate("/")}
@@ -27,38 +105,6 @@ export default function JoinQueue() {
       </div>
     );
   }
-
-  const companyName = company.name;
-  const [queueEntry, setQueueEntry] = useState<QueueEntry | null>(null);
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phoneNumber: "",
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Simulate joining the queue
-    const newEntry: QueueEntry = {
-      id: Math.random().toString(36).substr(2, 9),
-      companyId: companyId!,
-      companyName,
-      position: Math.floor(Math.random() * 30) + 1,
-      estimatedWaitTime: Math.floor(Math.random() * 60) + 10,
-      fullName: formData.fullName,
-      phoneNumber: formData.phoneNumber,
-      joinedAt: new Date(),
-    };
-
-    setQueueEntry(newEntry);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
 
   if (queueEntry) {
     return (
@@ -82,25 +128,31 @@ export default function JoinQueue() {
           <div className="text-center mb-6">
             <p className="text-sm text-gray-600 mb-2">Your Number</p>
             <p className="text-6xl font-bold text-primary leading-none animate-[fadeInUp_0.5s_ease-out_0.2s_both]">
-              {queueEntry.position}
+              {queueEntry.queueNumber || queueEntry.position}
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-gray-600 text-sm mb-6">
-            <Clock size={16} />
-            <span>Estimated Wait: ~{queueEntry.estimatedWaitTime} mins</span>
-          </div>
+          {queueEntry.serviceTimeMinutes && (
+            <div className="flex items-center justify-center gap-2 text-gray-600 text-sm mb-6">
+              <Clock size={16} />
+              <span>Estimated Wait: ~{queueEntry.serviceTimeMinutes} mins</span>
+            </div>
+          )}
 
           <p className="text-center text-gray-600 text-sm mb-12 leading-relaxed">
             We'll call your name or text you when it's your turn.
           </p>
 
           <button
-            onClick={() =>
-              navigate(`/queue/${queueEntry.position}`, {
-                state: { companyName },
-              })
-            }
+            onClick={() => {
+              // Extract number from queueNumber (e.g., "A-123" -> "123") or use position
+              const queueNum = queueEntry.queueNumber
+                ? queueEntry.queueNumber.split("-")[1] || queueEntry.queueNumber
+                : queueEntry.position.toString();
+              navigate(`/queue/${queueNum}`, {
+                state: { companyName: company?.name },
+              });
+            }}
             className="w-full py-3.5 bg-gray-200 text-gray-900 rounded-lg text-base font-semibold transition-all duration-150 hover:bg-gray-300"
           >
             Go to Queue
@@ -119,6 +171,12 @@ export default function JoinQueue() {
         <p className="text-gray-600 mb-12 text-[15px]">
           Enter your details to get your spot in line.
         </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col">
@@ -145,25 +203,28 @@ export default function JoinQueue() {
               htmlFor="phoneNumber"
               className="block text-sm font-medium text-gray-900 mb-2"
             >
-              Phone Number (Optional)
+              Phone Number
             </label>
             <input
               type="tel"
               id="phoneNumber"
               name="phoneNumber"
               className="w-full px-4 py-3 text-base border border-gray-200 rounded-lg outline-none transition-all duration-150 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 placeholder:text-gray-400"
-              placeholder="For SMS notifications"
+              placeholder="+234 (816) 630-2714"
               value={formData.phoneNumber}
               onChange={handleInputChange}
+              required
+              maxLength={11}
             />
           </div>
 
-          <button
+          <Button
             type="submit"
-            className="w-full py-3.5 bg-primary text-white rounded-lg text-base font-semibold transition-all duration-150 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-md"
+            disabled={submitting}
+            className="w-full py-3.5 bg-primary text-white rounded-lg text-base font-semibold transition-all duration-150 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Join Queue
-          </button>
+            {submitting ? "Joining..." : "Join Queue"}
+          </Button>
         </form>
       </div>
     </div>

@@ -4,12 +4,20 @@ import express from "express";
 import { AppDataSource } from "./data-source";
 import { registerRoutes } from "./routes";
 import { redisService } from "./service/redis.service";
+import cors from "cors";
+import { ENV } from "./config/ENV";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
+app.use(
+  cors({
+    origin: ENV.APP.FRONTEND_URL,
+    credentials: true,
+  })
+);
 registerRoutes(app);
 
 app.get("/", (req, res) => {

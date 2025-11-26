@@ -78,6 +78,8 @@ export class CompanyService {
           "company.longitude",
           "company.phoneNumber",
           "company.hours",
+          "company.serviceTimeMinutes",
+          "company.maxQueueCapacity",
         ])
         .where("company.deletedAt IS NULL");
 

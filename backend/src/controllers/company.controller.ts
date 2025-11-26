@@ -19,6 +19,9 @@ const CreateCompanySchema = z.object({
     weekends: z.string().min(1),
   }),
   phoneNumber: z.string().min(1),
+  serviceTimeMinutes: z.number().min(1),
+  maxQueueCapacity: z.number().min(1),
+  queuePrefix: z.string().min(1),
 });
 
 export class CompanyController {
@@ -53,11 +56,11 @@ export class CompanyController {
   }
 
   async getAllCompanies(req: Request, res: Response) {
-    const { page, limit, search, category } = req.query;
+    const { page, pageSize, search, category } = req.query;
     try {
       const response = await this.companyService.getAllCompanies(
         Number(page) || 1,
-        Number(limit) || 10,
+        Number(pageSize) || 10,
         search as string,
         category as string
       );

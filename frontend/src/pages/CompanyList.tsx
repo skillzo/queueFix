@@ -3,27 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { Search, Users, Clock, ChevronRight } from "lucide-react";
 import Button from "../components/Button";
 import type { Company } from "../types";
+import { getCompanies } from "../api/companies.api";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-interface ApiResponse {
-  success: boolean;
-  message: string;
-  data: {
-    data: Company[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-}
+// Company categories from backend enum
+const COMPANY_CATEGORIES = [
+  "",
+  "Banking",
+  "Government Services",
+  "Identity Enrollment (NIN)",
+  "Driver License & Road Safety (FRSC)",
+  "Immigration & Passport Offices",
+  "Telecom Support Centers",
+  "Hospitals & Clinics",
+  "Pharmacies",
+  "Diagnostics & Labs",
+  "Transport & Terminals",
+  "Retail & Supermarkets",
+  "Courier & Delivery Offices",
+  "Embassies & Visa Centers",
+  "Vehicle Service Centers",
+  "Schools & University Centers",
+];
 
 export default function CompanyList() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,28 +38,15 @@ export default function CompanyList() {
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams();
-        if (searchQuery.trim()) {
-          params.append("search", searchQuery.trim());
-        }
-        if (selectedCategory !== "All") {
-          params.append("category", selectedCategory);
-        }
-        params.append("limit", "100");
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/companies?${params.toString()}`
-        );
-        const result: ApiResponse = await response.json();
+        const result = await getCompanies({
+          search: searchQuery.trim() || undefined,
+          category: selectedCategory || undefined,
+          pageSize: 100,
+          page: 1,
+        });
 
         if (result.success && result.data) {
-          // Map API response to Company type with default values for missing fields
-          const mappedCompanies: Company[] = result.data.data.map((company) => ({
-            ...company,
-            currentQueueSize: 0, // TODO: Get from queue service
-            estimatedWaitTime: 0, // TODO: Calculate from queue
-          }));
-          setCompanies(mappedCompanies);
+          setCompanies(result?.data?.data || []);
         } else {
           setError(result.message || "Failed to fetch companies");
         }
@@ -65,14 +57,8 @@ export default function CompanyList() {
         setLoading(false);
       }
     };
-
     fetchCompanies();
   }, [searchQuery, selectedCategory]);
-
-  const categories = [
-    "All",
-    ...Array.from(new Set(companies.map((c) => c.category))),
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -92,6 +78,7 @@ export default function CompanyList() {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               size={20}
             />
+
             <input
               type="text"
               className="w-full pl-12 pr-4 py-3.5 text-base border border-gray-200 rounded-lg outline-none transition-all duration-150 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 placeholder:text-gray-400"
@@ -102,9 +89,9 @@ export default function CompanyList() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
+            {COMPANY_CATEGORIES.map((category) => (
               <button
-                key={category}
+                key={category || "all"}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                   selectedCategory === category
                     ? "text-blue-500 shadow-sm border border-blue-500"
@@ -112,7 +99,7 @@ export default function CompanyList() {
                 }`}
                 onClick={() => setSelectedCategory(category)}
               >
-                {category}
+                {category || "All"}
               </button>
             ))}
           </div>
@@ -140,9 +127,11 @@ export default function CompanyList() {
                 className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 cursor-pointer transition-all duration-150 hover:shadow-lg hover:-translate-y-1 hover:border-primary/30 flex flex-col"
                 onClick={() => navigate(`/company/${company.id}`)}
               >
-                <div className="w-14 h-14 bg-linear-to-br from-gray-100 to-gray-50 rounded-xl flex items-center justify-center mb-4 text-2xl">
-                  {company.imageUrl}
-                </div>
+                <img
+                  src={company.imageUrl}
+                  alt={company.name}
+                  className="w-14 h-14 rounded-xl mb-4"
+                />
 
                 <div className="flex-1 mb-4">
                   <h3 className="text-xl font-bold text-gray-900 mb-1">
@@ -161,7 +150,7 @@ export default function CompanyList() {
                   </div>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <Clock size={16} />
-                    <span>~{company.estimatedWaitTime} min wait</span>
+                    <span>~{company.serviceTimeMinutes} min wait</span>
                   </div>
                 </div>
 
