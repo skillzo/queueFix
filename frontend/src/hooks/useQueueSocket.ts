@@ -3,9 +3,10 @@ import { io, Socket } from "socket.io-client";
 import { API_BASE_URL } from "../utils/constants";
 
 export interface QueueUpdate {
-  type: "JOINED" | "JOINED_MANY" | "NEXT_SERVED" | "LEFT";
+  type: "JOINED" | "JOINED_MANY" | "NEXT_SERVED" | "LEFT" | "QUEUE_EMPTIED";
   queueSize: number;
   servingNumber?: number;
+  clearedCount?: number;
   entry?: {
     id: string;
     queueNumber: string;

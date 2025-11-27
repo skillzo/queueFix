@@ -853,4 +853,86 @@ export class QueueService {
       );
     }
   }
+
+  async emptyQueue(
+    companyId: string
+  ): Promise<ServiceResponse<{ clearedCount: number }>> {
+    try {
+      const client = redisService.getClient();
+
+      // Verify company exists
+      const company = await this.companyRepository.findOne({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        return ServiceResponse.failure(
+          "Company not found",
+          undefined,
+          StatusCodes.NOT_FOUND
+        );
+      }
+
+      // Get all waiting entries for this company
+      const waitingEntries = await this.queueEntryRepository.find({
+        where: {
+          companyId,
+          status: QueueEntryStatus.WAITING,
+        },
+      });
+
+      const clearedCount = waitingEntries.length;
+
+      // Delete Redis queue list
+      const queueListKey = redisService.getQueueListKey(companyId);
+      await client.del(queueListKey);
+
+      // Delete all Redis entry hashes
+      const entryKeys = waitingEntries.map((entry) =>
+        redisService.getQueueEntryKey(entry.id, companyId)
+      );
+      if (entryKeys.length > 0) {
+        await client.del(entryKeys);
+      }
+
+      // Update all waiting entries in PostgreSQL to LEFT status
+      if (waitingEntries.length > 0) {
+        const now = new Date();
+        await this.queueEntryRepository.update(
+          {
+            companyId,
+            status: QueueEntryStatus.WAITING,
+          },
+          {
+            status: QueueEntryStatus.LEFT,
+            leftAt: now,
+          }
+        );
+      }
+
+      // Reset serving number to 0
+      const servingKey = redisService.getQueueServingKey(companyId);
+      await client.set(servingKey, "0");
+
+      // Emit WebSocket update
+      queueSocketService.emitQueueUpdate(companyId, {
+        type: "QUEUE_EMPTIED",
+        queueSize: 0,
+        clearedCount,
+      });
+
+      return ServiceResponse.success(
+        `Queue emptied successfully. ${clearedCount} entry(ies) removed.`,
+        { clearedCount },
+        StatusCodes.OK
+      );
+    } catch (error) {
+      console.error("Error emptying queue:", error);
+      return ServiceResponse.failure(
+        "Failed to empty queue",
+        error as Error,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }

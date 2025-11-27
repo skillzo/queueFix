@@ -271,4 +271,24 @@ export class QueueController {
         );
     }
   }
+
+  async emptyQueue(req: Request, res: Response) {
+    const { companyId } = req.params;
+
+    try {
+      const response = await this.queueService.emptyQueue(companyId);
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      console.error("Error emptying queue:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to empty queue",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
 }

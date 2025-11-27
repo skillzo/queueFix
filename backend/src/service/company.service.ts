@@ -81,7 +81,8 @@ export class CompanyService {
           "company.serviceTimeMinutes",
           "company.maxQueueCapacity",
         ])
-        .where("company.deletedAt IS NULL");
+        .where("company.deletedAt IS NULL")
+        .orderBy("company.createdAt", "DESC");
 
       if (search?.trim()) {
         qb.andWhere(

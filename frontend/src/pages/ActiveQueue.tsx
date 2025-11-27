@@ -162,6 +162,19 @@ export default function ActiveQueue() {
   const handleQueueUpdate = useCallback(
     (data: any) => {
       console.log("Queue update received in ActiveQueue:", data);
+
+      // Handle queue emptied event
+      if (data.type === "QUEUE_EMPTIED") {
+        setLiveQueue([]);
+        setUserQueueNumber("");
+        setPeopleAhead(0);
+        setEstimatedWait(0);
+        setShowGetReady(false);
+        // Still refresh to get latest state
+        fetchQueueData();
+        return;
+      }
+
       // Trigger animation and refresh queue data
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);

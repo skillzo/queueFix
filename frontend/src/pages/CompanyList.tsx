@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, Users, Clock, ChevronRight } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, Users, Clock, ChevronRight, LogOut } from "lucide-react";
 import Button from "../components/Button";
 import type { Company } from "../types";
 import { getCompanies } from "../api/companies.api";
@@ -64,9 +64,15 @@ export default function CompanyList() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Find a Queue
-          </h1>
+          <div className=" fbc flex items-center gap-2 mb-3">
+            <h1 className="text-4xl font-bold text-gray-900">Find a Queue</h1>
+
+            <Link to="/login">
+              <Button variant="danger" icon={LogOut}>
+                LOG OUT
+              </Button>
+            </Link>
+          </div>
           <p className="text-gray-600 text-lg">
             Search for a company and join their virtual queue
           </p>

@@ -55,6 +55,17 @@ export default function QueueDashboard() {
   const handleQueueUpdate = useCallback(
     (data: any) => {
       console.log("Queue update received:", data);
+
+      // Handle queue emptied event
+      if (data.type === "QUEUE_EMPTIED") {
+        setTotalWaiting(0);
+        setWaitingList([]);
+        setCurrentServing(0);
+        // Still refresh to get latest stats
+        fetchDashboardData();
+        return;
+      }
+
       // Refresh dashboard data when queue changes
       fetchDashboardData();
 

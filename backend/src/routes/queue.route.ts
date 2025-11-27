@@ -55,4 +55,10 @@ router.get(
   queueController.getDashboardStats.bind(queueController)
 );
 
+// Empty company queue (admin)
+router.delete(
+  "/:companyId/empty",
+  queueController.emptyQueue.bind(queueController)
+);
+
 export default router;
