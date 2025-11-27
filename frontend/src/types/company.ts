@@ -31,6 +31,17 @@ export interface QueuePosition {
   estimatedWaitMinutes: number;
 }
 
+export interface ActiveQueue {
+  id: string;
+  companyId: string;
+  companyName: string;
+  queueNumber: string;
+  position: number;
+  peopleAhead: number;
+  estimatedWaitMinutes: number;
+  joinedAt: string;
+}
+
 export interface ServiceResponse<T> {
   success: boolean;
   message: string;

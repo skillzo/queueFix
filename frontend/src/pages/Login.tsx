@@ -1,19 +1,34 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone } from "lucide-react";
+import { Phone, User } from "lucide-react";
 import Button from "../components/Button";
 
 export default function Login() {
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phoneNumber: "",
+  });
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (phoneNumber.trim() && phoneNumber.length === 11) {
-      localStorage.setItem("phoneNumber", phoneNumber.trim());
+    if (
+      formData.fullName.trim() &&
+      formData.phoneNumber.trim() &&
+      formData.phoneNumber.length === 11
+    ) {
+      localStorage.setItem("fullName", formData.fullName.trim());
+      localStorage.setItem("phoneNumber", formData.phoneNumber.trim());
       navigate("/");
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   return (
@@ -27,11 +42,29 @@ export default function Login() {
             Welcome Back
           </p>
           <p className="mt-2 text-base font-normal leading-normal text-gray-600">
-            Enter your phone number to continue
+            Enter your details to continue
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <label className="flex flex-col">
+            <p className="pb-2 text-sm font-medium leading-normal text-gray-600">
+              Full Name
+            </p>
+            <div className="relative flex items-center">
+              <User className="absolute left-4 text-gray-500" size={20} />
+              <input
+                className="h-12 w-full rounded-lg border border-gray-300 bg-white pl-12 pr-4 text-base font-normal leading-normal text-gray-900 placeholder:text-gray-500 focus:outline-0 focus:ring-2 focus:ring-[#3A5B93]/50"
+                placeholder="e.g., Alex Doe"
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          </label>
+
           <label className="flex flex-col">
             <p className="pb-2 text-sm font-medium leading-normal text-gray-600">
               Phone Number
@@ -43,8 +76,9 @@ export default function Login() {
                 className="h-12 w-full rounded-lg border border-gray-300 bg-white pl-12 pr-4 text-base font-normal leading-normal text-gray-900 placeholder:text-gray-500 focus:outline-0 focus:ring-2 focus:ring-[#3A5B93]/50"
                 placeholder="+234 (816) 630-2714"
                 type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
                 required
               />
             </div>

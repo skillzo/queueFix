@@ -8,6 +8,7 @@ import type {
   QueueListEntry,
   QueuePosition,
   QueueStatus,
+  ActiveQueue,
 } from "../types/company";
 
 export const getCompanies = async (
@@ -79,5 +80,54 @@ export const leaveQueue = async (
       params: { phoneNumber },
     }
   );
+  return response?.data;
+};
+
+export const getActiveQueues = async (
+  phoneNumber: string
+): Promise<ServiceResponse<ActiveQueue[]>> => {
+  const response = await axios.get(`${API_BASE_URL}/queues/active`, {
+    params: { phoneNumber },
+  });
+  return response?.data;
+};
+
+// Admin API functions
+export interface DashboardStats {
+  currentServing: number;
+  totalWaiting: number;
+  servedToday: number;
+  avgProcessingTimeMinutes: number;
+  queueList: Array<{
+    queueNumber: string;
+    fullName: string;
+    position: number;
+    phoneNumber?: string;
+  }>;
+}
+
+export interface NextCustomerResponse {
+  servingNumber: number;
+  entry?: {
+    id: string;
+    queueNumber: string;
+    fullName: string;
+    phoneNumber?: string;
+  };
+}
+
+export const getDashboardStats = async (
+  companyId: string
+): Promise<ServiceResponse<DashboardStats>> => {
+  const response = await axios.get(
+    `${API_BASE_URL}/queues/${companyId}/dashboard`
+  );
+  return response?.data;
+};
+
+export const nextCustomer = async (
+  companyId: string
+): Promise<ServiceResponse<NextCustomerResponse>> => {
+  const response = await axios.post(`${API_BASE_URL}/queues/${companyId}/next`);
   return response?.data;
 };

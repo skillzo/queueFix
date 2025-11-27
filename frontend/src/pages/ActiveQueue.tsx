@@ -15,29 +15,63 @@ interface QueueListItem {
   position: number;
   phoneNumber?: string;
   status?: string;
-  number?: string;
 }
+
+// Helper function for status determination
+const getQueueItemStatus = (
+  item: QueueListItem,
+  userQueueNumber: string,
+  minPosition: number,
+  servingNumber: number
+): string => {
+  if (item.queueNumber === userQueueNumber) return "yours";
+  if (item.position === minPosition) return "highest";
+  if (item.position === servingNumber) return "serving";
+  if (item.position >= servingNumber + 1 && item.position <= servingNumber + 3)
+    return "next";
+  return "waiting";
+};
+
+// Helper function for status styles
+const getStatusStyles = (status: string) => {
+  const styles = {
+    yours: "bg-rose-50 border-rose-500",
+    highest: "bg-green-50 border-green-500",
+    serving: "bg-green-50 border-green-500",
+    next: "bg-blue-50 border-blue-300",
+    waiting: "bg-white border-gray-200",
+  };
+  return styles[status as keyof typeof styles] || styles.waiting;
+};
+
+const getStatusColor = (status: string) => {
+  const colors = {
+    yours: "text-rose-600",
+    highest: "text-green-600",
+    serving: "text-green-600",
+    next: "text-blue-500",
+    waiting: "text-gray-400",
+  };
+  return colors[status as keyof typeof colors] || colors.waiting;
+};
 
 export default function ActiveQueue() {
   const navigate = useNavigate();
   const location = useLocation();
 
   // Get company info from location state
-  const companyName = location.state?.companyName || "Queue";
   const companyId = location.state?.companyId;
+  const companyName = location.state?.companyName || "Queue";
+  const companyLogo = location.state?.companyLogo || "";
   const phoneNumber = localStorage.getItem("phoneNumber") || "";
 
   const [liveQueue, setLiveQueue] = useState<QueueListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeAgo, setTimeAgo] = useState("Just now");
   const [showGetReady, setShowGetReady] = useState(false);
   const [peopleAhead, setPeopleAhead] = useState(0);
   const [estimatedWait, setEstimatedWait] = useState(0);
   const [userQueueNumber, setUserQueueNumber] = useState<string>("");
-
-  // Use queue number from API response
-  const formattedQueueNumber = userQueueNumber || "N/A";
 
   // Fetch queue data
   const fetchQueueData = async () => {
@@ -54,50 +88,19 @@ export default function ActiveQueue() {
         getQueueStatus(companyId),
       ]);
 
-      let servingNumber = 0;
-      if (statusResult.success && statusResult.data) {
-        // Handle ApiResponse structure (data.data) or ServiceResponse (data)
-        const statusData = (statusResult.data as any).data || statusResult.data;
-        servingNumber = statusData?.currentServing || 0;
-      }
+      const statusData =
+        statusResult.success && statusResult.data
+          ? (statusResult.data as any).data || statusResult.data
+          : null;
+      const servingNumber = statusData?.currentServing || 0;
 
-      if (listResult.success && listResult.data) {
-        // Find the highest priority user (lowest position number)
-        const minPosition = Math.min(
-          ...listResult.data.map((item) => item.position)
-        );
-
-        // Determine status for each queue item
-        const queueWithStatus = listResult.data.map((item) => {
-          const position = item.position;
-          let status = "waiting";
-
-          if (position === minPosition) {
-            status = "highest";
-          } else if (position === servingNumber) {
-            status = "serving";
-          } else if (
-            position === servingNumber + 1 ||
-            position === servingNumber + 2 ||
-            position === servingNumber + 3
-          ) {
-            status = "next";
-          } else if (item.queueNumber === userQueueNumber) {
-            status = "yours";
-          }
-
-          return { ...item, status, number: item.queueNumber };
-        });
-
-        setLiveQueue(queueWithStatus);
-      }
-
+      let currentUserQueueNumber = "";
       if (positionResult.success && positionResult.data) {
+        currentUserQueueNumber = positionResult.data.queueNumber;
+        setUserQueueNumber(positionResult.data.queueNumber);
         setPeopleAhead(positionResult.data.peopleAhead);
         setEstimatedWait(positionResult.data.estimatedWaitMinutes);
-        setUserQueueNumber(positionResult.data.queueNumber);
 
-        // Show GetReady when 3 or fewer people ahead
         if (
           positionResult.data.peopleAhead <= 3 &&
           positionResult.data.peopleAhead > 0
@@ -106,7 +109,24 @@ export default function ActiveQueue() {
         }
       }
 
-      setTimeAgo("Just now");
+      if (listResult.success && listResult.data) {
+        const minPosition = Math.min(
+          ...listResult.data.map((item) => item.position)
+        );
+
+        const queueWithStatus = listResult.data.map((item) => ({
+          ...item,
+          status: getQueueItemStatus(
+            item,
+            currentUserQueueNumber,
+            minPosition,
+            servingNumber
+          ),
+        }));
+
+        setLiveQueue(queueWithStatus);
+      }
+
       setError(null);
     } catch (err: any) {
       setError("Failed to load queue data. Please try again.");
@@ -116,7 +136,6 @@ export default function ActiveQueue() {
     }
   };
 
-  // Initial fetch only
   useEffect(() => {
     if (companyId && phoneNumber) {
       fetchQueueData();
@@ -125,21 +144,6 @@ export default function ActiveQueue() {
       setError("Missing required information");
     }
   }, [companyId, phoneNumber]);
-
-  // Update time ago display
-  useEffect(() => {
-    let lastUpdate = Date.now();
-    const timeInterval = setInterval(() => {
-      const seconds = Math.floor((Date.now() - lastUpdate) / 1000);
-      if (seconds < 60) {
-        setTimeAgo(`${seconds}s ago`);
-      } else {
-        setTimeAgo(`${Math.floor(seconds / 60)}m ago`);
-      }
-    }, 1000);
-
-    return () => clearInterval(timeInterval);
-  }, []);
 
   const handleLeaveQueue = async () => {
     if (!companyId || !phoneNumber) return;
@@ -159,11 +163,10 @@ export default function ActiveQueue() {
     }
   };
 
-  // Show GetReady component if conditions are met
   if (showGetReady) {
     return (
       <GetReady
-        queueNumber={formattedQueueNumber}
+        queueNumber={userQueueNumber || "N/A"}
         companyName={companyName}
         peopleAhead={peopleAhead}
         onClose={() => setShowGetReady(false)}
@@ -210,10 +213,12 @@ export default function ActiveQueue() {
         </button>
       </header>
 
-      <div className="max-w-7xl mx-auto px-8 py-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-12">
-          {companyName}
-        </h1>
+      <div className="max-w-7xl mx-auto px-8 py-12 ">
+        <div className="flex items-center gap-2 mb-12">
+          <img src={companyLogo} alt={companyName} className="w-10 h-10" />
+
+          <h1 className="text-4xl font-bold text-gray-900 ">{companyName}</h1>
+        </div>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -228,7 +233,7 @@ export default function ActiveQueue() {
                 Your Number
               </h2>
               <div className="text-6xl font-bold text-blue-500 text-center py-6 bg-gray-50 rounded-xl">
-                {formattedQueueNumber}
+                {userQueueNumber || "N/A"}
               </div>
             </div>
 
@@ -236,7 +241,7 @@ export default function ActiveQueue() {
               <h3 className="text-base font-semibold text-gray-900 mb-1">
                 Queue is moving...
               </h3>
-              <p className="text-sm text-gray-400 mb-2">updated {timeAgo}</p>
+              <p className="text-sm text-gray-400 mb-2">updated just now</p>
               <p className="text-sm text-gray-600">
                 Approx. {estimatedWait} minutes wait
               </p>
@@ -276,45 +281,30 @@ export default function ActiveQueue() {
                   liveQueue.map((item, index) => (
                     <div
                       key={index}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-150 border-2 ${
-                        item.status === "highest"
-                          ? "bg-green-50 border-green-500"
-                          : item.status === "serving"
-                          ? "bg-green-50 border-green-500"
-                          : item.status === "next"
-                          ? "bg-blue-50 border-blue-300"
-                          : item.status === "yours"
-                          ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500"
-                          : "bg-white border-gray-200"
-                      }`}
-                      title={item.number}
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-150 border-2 ${getStatusStyles(
+                        item.status || "waiting"
+                      )}`}
+                      title={item.queueNumber}
                     >
+                      {item.status === "yours" && (
+                        <p className="text-xs font-semibold text-rose-600">
+                          You
+                        </p>
+                      )}
                       <Armchair
                         size={32}
-                        className={
-                          item.status === "highest"
-                            ? "text-green-600"
-                            : item.status === "serving"
-                            ? "text-green-600"
-                            : item.status === "next"
-                            ? "text-blue-500"
-                            : item.status === "yours"
-                            ? "text-blue-600"
-                            : "text-gray-400"
-                        }
+                        className={getStatusColor(item.status || "waiting")}
                       />
                       <span
                         className={`text-xs font-semibold mt-2 ${
-                          item.status === "highest"
-                            ? "text-green-600"
-                            : item.status === "serving"
-                            ? "text-green-600"
-                            : item.status === "yours"
-                            ? "text-blue-600"
+                          item.status === "yours" ||
+                          item.status === "highest" ||
+                          item.status === "serving"
+                            ? getStatusColor(item.status)
                             : "text-gray-600"
                         }`}
                       >
-                        {item.number}
+                        {item.queueNumber}
                       </span>
                     </div>
                   ))

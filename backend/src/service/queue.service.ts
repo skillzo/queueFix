@@ -617,4 +617,185 @@ export class QueueService {
     }
     return result;
   }
+
+  async getActiveQueues(phoneNumber: string): Promise<
+    ServiceResponse<
+      Array<{
+        id: string;
+        companyId: string;
+        companyName: string;
+        queueNumber: string;
+        position: number;
+        peopleAhead: number;
+        estimatedWaitMinutes: number;
+        joinedAt: Date;
+      }>
+    >
+  > {
+    try {
+      const client = redisService.getClient();
+
+      // Find all active queue entries for this phone number
+      const entries = await this.queueEntryRepository.find({
+        where: {
+          phoneNumber,
+          status: QueueEntryStatus.WAITING,
+        },
+        relations: [], // We'll fetch company separately
+      });
+
+      if (entries.length === 0) {
+        return ServiceResponse.success("No active queues found", []);
+      }
+
+      // Get company IDs
+      const companyIds = [...new Set(entries.map((e) => e.companyId))];
+
+      // Fetch companies
+      const companies = await this.companyRepository.find({
+        where: {
+          id: In(companyIds),
+        },
+      });
+
+      const companyMap = new Map(companies.map((c) => [c.id, c]));
+
+      // Build response with position and wait time for each queue
+      const activeQueues = await Promise.all(
+        entries.map(async (entry) => {
+          const company = companyMap.get(entry.companyId);
+          if (!company) {
+            throw new Error(`Company ${entry.companyId} not found`);
+          }
+
+          // Get position from Redis
+          const position = await this.getPositionFromRedis(
+            entry.companyId,
+            entry.id
+          );
+
+          // Get current serving number
+          const servingKey = redisService.getQueueServingKey(entry.companyId);
+          const currentServing = parseInt(
+            (await client.get(servingKey)) || "0"
+          );
+
+          const peopleAhead = Math.max(0, position - currentServing);
+          const serviceTimeMinutes = company.serviceTimeMinutes || 1;
+          const estimatedWaitMinutes = peopleAhead * serviceTimeMinutes;
+
+          return {
+            id: entry.id,
+            companyId: entry.companyId,
+            companyName: company.name,
+            queueNumber: entry.queueNumber,
+            position,
+            peopleAhead,
+            estimatedWaitMinutes,
+            joinedAt: entry.joinedAt,
+          };
+        })
+      );
+
+      return ServiceResponse.success("Active queues retrieved", activeQueues);
+    } catch (error) {
+      console.error("Error getting active queues:", error);
+      return ServiceResponse.failure(
+        "Failed to get active queues",
+        error as Error,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  async getDashboardStats(companyId: string): Promise<
+    ServiceResponse<{
+      currentServing: number;
+      totalWaiting: number;
+      servedToday: number;
+      avgProcessingTimeMinutes: number;
+      queueList: QueueListEntry[];
+    }>
+  > {
+    try {
+      const client = redisService.getClient();
+
+      // Get current serving number
+      const servingKey = redisService.getQueueServingKey(companyId);
+      const currentServing = parseInt((await client.get(servingKey)) || "0");
+
+      // Get queue size
+      const queueListKey = redisService.getQueueListKey(companyId);
+      const totalWaiting = await client.lLen(queueListKey);
+
+      // Get queue list
+      const queueListResponse = await this.getQueueList(companyId, 50);
+      const queueList =
+        queueListResponse.success && queueListResponse.data
+          ? queueListResponse.data
+          : [];
+
+      // Get today's date range (start of day to now)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Get served today count (entries completed today)
+      const servedToday = await this.queueEntryRepository
+        .createQueryBuilder("entry")
+        .where("entry.companyId = :companyId", { companyId })
+        .andWhere("entry.status = :status", {
+          status: QueueEntryStatus.COMPLETED,
+        })
+        .andWhere("entry.completedAt >= :today", { today })
+        .andWhere("entry.completedAt < :tomorrow", { tomorrow })
+        .getCount();
+
+      // Get average processing time for today's completed entries
+      const todayCompletedEntries = await this.queueEntryRepository
+        .createQueryBuilder("entry")
+        .where("entry.companyId = :companyId", { companyId })
+        .andWhere("entry.status = :status", {
+          status: QueueEntryStatus.COMPLETED,
+        })
+        .andWhere("entry.completedAt >= :today", { today })
+        .andWhere("entry.completedAt < :tomorrow", { tomorrow })
+        .select(["entry.joinedAt", "entry.completedAt"])
+        .getMany();
+
+      let avgProcessingTimeMinutes = 0;
+      if (todayCompletedEntries.length > 0) {
+        const totalProcessingTime = todayCompletedEntries.reduce(
+          (sum, entry) => {
+            if (entry.completedAt && entry.joinedAt) {
+              const processingTime =
+                entry.completedAt.getTime() - entry.joinedAt.getTime();
+              return sum + processingTime;
+            }
+            return sum;
+          },
+          0
+        );
+        avgProcessingTimeMinutes = Math.round(
+          totalProcessingTime / todayCompletedEntries.length / 1000 / 60
+        );
+      }
+
+      return ServiceResponse.success("Dashboard stats retrieved", {
+        currentServing,
+        totalWaiting,
+        servedToday,
+        avgProcessingTimeMinutes,
+        queueList,
+      });
+    } catch (error) {
+      console.error("Error getting dashboard stats:", error);
+      return ServiceResponse.failure(
+        "Failed to get dashboard stats",
+        error as Error,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 }

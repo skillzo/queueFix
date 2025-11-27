@@ -46,4 +46,13 @@ router.get(
   queueController.getQueueList.bind(queueController)
 );
 
+// Get user's active queues
+router.get("/active", queueController.getActiveQueues.bind(queueController));
+
+// Admin dashboard stats
+router.get(
+  "/:companyId/dashboard",
+  queueController.getDashboardStats.bind(queueController)
+);
+
 export default router;

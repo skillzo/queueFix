@@ -219,4 +219,56 @@ export class QueueController {
         );
     }
   }
+
+  async getActiveQueues(req: Request, res: Response) {
+    const { phoneNumber } = req.query;
+
+    try {
+      if (!phoneNumber || typeof phoneNumber !== "string") {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json(
+            ServiceResponse.failure(
+              "Phone number is required",
+              undefined,
+              StatusCodes.BAD_REQUEST
+            )
+          );
+      }
+
+      const response = await this.queueService.getActiveQueues(phoneNumber);
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      console.error("Error getting active queues:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to get active queues",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
+
+  async getDashboardStats(req: Request, res: Response) {
+    const { companyId } = req.params;
+
+    try {
+      const response = await this.queueService.getDashboardStats(companyId);
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      console.error("Error getting dashboard stats:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to get dashboard stats",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
 }

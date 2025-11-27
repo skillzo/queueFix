@@ -9,8 +9,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Button from "../components/Button";
-import { getCompanyById, getQueueStatus } from "../api/companies.api";
+import { getCompanyById, getQueueStatus, joinQueue } from "../api/companies.api";
 import type { Company } from "../types";
+import type { QueueEntry } from "../types";
 
 export default function CompanyDetails() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -20,6 +21,7 @@ export default function CompanyDetails() {
   const [error, setError] = useState<string | null>(null);
   const [queueSize, setQueueSize] = useState(0);
   const [estimatedWait, setEstimatedWait] = useState(0);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,6 +73,48 @@ export default function CompanyDetails() {
     fetchData();
   }, [companyId]);
 
+  const handleJoinQueue = async () => {
+    if (!companyId) return;
+
+    const fullName = localStorage.getItem("fullName");
+    const phoneNumber = localStorage.getItem("phoneNumber");
+
+    if (!fullName || !phoneNumber) {
+      navigate("/login");
+      return;
+    }
+
+    setJoining(true);
+    setError(null);
+
+    try {
+      const result = await joinQueue(companyId, {
+        fullName,
+        phoneNumber,
+      });
+
+      if (result.success && result.data) {
+        const queueEntry = result.data as QueueEntry;
+        navigate(`/queue/${queueEntry.queueNumber}`, {
+          state: {
+            companyName: company?.name,
+            companyId: companyId,
+            companyLogo: company?.imageUrl || "",
+          },
+        });
+      } else {
+        setError(result.message || "Failed to join queue");
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Failed to join queue. Please try again."
+      );
+      console.error("Error joining queue:", err);
+    } finally {
+      setJoining(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -96,6 +140,10 @@ export default function CompanyDetails() {
       </div>
     );
   }
+
+  const fullName = localStorage.getItem("fullName");
+  const phoneNumber = localStorage.getItem("phoneNumber");
+  const isLoggedIn = fullName && phoneNumber;
 
   return (
     <div className="max-w-3xl w-full mx-auto px-4 sm:px-8 py-12 flex flex-col gap-4">
@@ -252,14 +300,20 @@ export default function CompanyDetails() {
       </div>
 
       <div className="w-full">
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
         <Button
-          onClick={() => navigate(`/join/${company.id}`)}
+          onClick={handleJoinQueue}
+          disabled={joining || !isLoggedIn}
           fullWidth
           variant="primary"
           icon={ChevronRight}
           iconPosition="right"
         >
-          Join Queue
+          {joining ? "Joining..." : !isLoggedIn ? "Please Login" : "Join Queue"}
         </Button>
       </div>
     </div>
