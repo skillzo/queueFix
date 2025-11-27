@@ -3,6 +3,7 @@ import { AppDataSource } from "../data-source";
 import { QueueEntry, QueueEntryStatus } from "../entities/queueEntry.entity";
 import { Company } from "../entities/company.entity";
 import { redisService } from "./redis.service";
+import { queueSocketService } from "../websocket/queue.socket";
 import { ServiceResponse } from "../utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 import { randomUUID } from "crypto";
@@ -129,6 +130,19 @@ export class QueueService {
 
       // Set expiration on hash (24 hours)
       await client.expire(entryKey, 86400);
+
+      // Emit WebSocket update
+      const updatedQueueSize = await client.lLen(queueListKey);
+      queueSocketService.emitQueueUpdate(companyId, {
+        type: "JOINED",
+        queueSize: updatedQueueSize,
+        entry: {
+          id: savedEntry.id,
+          queueNumber: savedEntry.queueNumber,
+          fullName: savedEntry.fullName,
+          position: savedEntry.position,
+        },
+      });
 
       return ServiceResponse.success(
         "Successfully joined queue",
@@ -272,6 +286,20 @@ export class QueueService {
 
         savedEntries.push({ ...savedEntry, position: savedEntry.position });
       }
+
+      // Emit WebSocket update
+      const updatedQueueSize = await client.lLen(queueListKey);
+      queueSocketService.emitQueueUpdate(companyId, {
+        type: "JOINED_MANY",
+        queueSize: updatedQueueSize,
+        entries: savedEntries.map((entry) => ({
+          id: entry.id,
+          queueNumber: entry.queueNumber,
+          fullName: entry.fullName,
+          position: entry.position,
+        })),
+        count: savedEntries.length,
+      });
 
       return ServiceResponse.success(
         `Successfully added ${savedEntries.length} user(s) to queue`,
@@ -433,6 +461,21 @@ export class QueueService {
       const newServingNumber = currentServing + 1;
       await client.set(servingKey, newServingNumber.toString());
 
+      // Emit WebSocket update
+      const updatedQueueSize = await client.lLen(queueListKey);
+      queueSocketService.emitQueueUpdate(companyId, {
+        type: "NEXT_SERVED",
+        queueSize: updatedQueueSize,
+        servingNumber: newServingNumber,
+        entry: entry
+          ? {
+              id: entry.id,
+              queueNumber: entry.queueNumber,
+              fullName: entry.fullName,
+            }
+          : undefined,
+      });
+
       return ServiceResponse.success("Next customer served", {
         servingNumber: newServingNumber,
         entry: entry || undefined,
@@ -483,6 +526,18 @@ export class QueueService {
       entry.status = QueueEntryStatus.LEFT;
       entry.leftAt = new Date();
       await this.queueEntryRepository.save(entry);
+
+      // Emit WebSocket update
+      const updatedQueueSize = await client.lLen(queueListKey);
+      queueSocketService.emitQueueUpdate(companyId, {
+        type: "LEFT",
+        queueSize: updatedQueueSize,
+        entry: {
+          id: entry.id,
+          queueNumber: entry.queueNumber,
+          fullName: entry.fullName,
+        },
+      });
 
       return ServiceResponse.success("Successfully left queue", null);
     } catch (error) {

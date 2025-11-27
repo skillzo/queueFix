@@ -6,8 +6,11 @@ import { registerRoutes } from "./routes";
 import { redisService } from "./service/redis.service";
 import cors from "cors";
 import { ENV } from "./config/ENV";
+import { createServer } from "http";
+import { queueSocketService } from "./websocket/queue.socket";
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
@@ -33,8 +36,11 @@ async function initializeServices() {
     await redisService.connect();
     console.log("Redis connected");
 
+    queueSocketService.initialize(server);
+    console.log("WebSocket server initialized");
+
     // Start server
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
