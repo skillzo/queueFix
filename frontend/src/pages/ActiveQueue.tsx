@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Layers, User, LogOut, Bell, Armchair } from "lucide-react";
 import GetReady from "../components/GetReady";
@@ -8,6 +8,7 @@ import {
   leaveQueue,
   getQueueStatus,
 } from "../api/companies.api";
+import { useQueueSocket } from "../hooks/useQueueSocket";
 
 interface QueueListItem {
   queueNumber: string;
@@ -72,6 +73,8 @@ export default function ActiveQueue() {
   const [peopleAhead, setPeopleAhead] = useState(0);
   const [estimatedWait, setEstimatedWait] = useState(0);
   const [userQueueNumber, setUserQueueNumber] = useState<string>("");
+  const [isAnimating, setIsAnimating] = useState(false);
+  const previousQueueRef = useRef<QueueListItem[]>([]);
 
   // Fetch queue data
   const fetchQueueData = async () => {
@@ -124,6 +127,25 @@ export default function ActiveQueue() {
           ),
         }));
 
+        // Check if queue changed (items added/removed)
+        const previousQueueNumbers = previousQueueRef.current.map(
+          (item) => item.queueNumber
+        );
+        const currentQueueNumbers = queueWithStatus.map(
+          (item) => item.queueNumber
+        );
+        const queueChanged =
+          previousQueueNumbers.length !== currentQueueNumbers.length ||
+          previousQueueNumbers.some(
+            (num, idx) => num !== currentQueueNumbers[idx]
+          );
+
+        if (queueChanged && previousQueueRef.current.length > 0) {
+          setIsAnimating(true);
+          setTimeout(() => setIsAnimating(false), 600); // Match CSS animation duration
+        }
+
+        previousQueueRef.current = queueWithStatus;
         setLiveQueue(queueWithStatus);
       }
 
@@ -135,6 +157,26 @@ export default function ActiveQueue() {
       setLoading(false);
     }
   };
+
+  // Handle WebSocket updates
+  const handleQueueUpdate = useCallback(
+    (data: any) => {
+      console.log("Queue update received in ActiveQueue:", data);
+      // Trigger animation and refresh queue data
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 600);
+      fetchQueueData();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Connect to WebSocket for real-time updates
+  useQueueSocket({
+    companyId,
+    onUpdate: handleQueueUpdate,
+    enabled: !!companyId,
+  });
 
   useEffect(() => {
     if (companyId && phoneNumber) {
@@ -280,11 +322,18 @@ export default function ActiveQueue() {
                 ) : (
                   liveQueue.map((item, index) => (
                     <div
-                      key={index}
-                      className={`flex flex-col items-center justify-center p-4 rounded-lg transition-all duration-150 border-2 ${getStatusStyles(
-                        item.status || "waiting"
-                      )}`}
+                      key={item.queueNumber}
+                      className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 ${
+                        isAnimating
+                          ? "animate-slide-left"
+                          : "transition-all duration-150"
+                      } ${getStatusStyles(item.status || "waiting")}`}
                       title={item.queueNumber}
+                      style={{
+                        animationDelay: isAnimating
+                          ? `${Math.min(index * 15, 200)}ms`
+                          : "0ms",
+                      }}
                     >
                       {item.status === "yours" && (
                         <p className="text-xs font-semibold text-rose-600">
@@ -296,7 +345,7 @@ export default function ActiveQueue() {
                         className={getStatusColor(item.status || "waiting")}
                       />
                       <span
-                        className={`text-xs font-semibold mt-2 ${
+                        className={`text-xs font-semibold mt-2 transition-colors duration-150 ${
                           item.status === "yours" ||
                           item.status === "highest" ||
                           item.status === "serving"

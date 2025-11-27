@@ -9,7 +9,11 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Button from "../components/Button";
-import { getCompanyById, getQueueStatus, joinQueue } from "../api/companies.api";
+import {
+  getCompanyById,
+  getQueueStatus,
+  joinQueue,
+} from "../api/companies.api";
 import type { Company } from "../types";
 import type { QueueEntry } from "../types";
 

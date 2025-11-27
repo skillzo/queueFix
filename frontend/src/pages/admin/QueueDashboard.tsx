@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { getDashboardStats, nextCustomer } from "../../api/companies.api";
+import { useQueueSocket } from "../../hooks/useQueueSocket";
 
 export default function QueueDashboard() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -50,11 +51,38 @@ export default function QueueDashboard() {
     }
   };
 
+  // Handle WebSocket updates
+  const handleQueueUpdate = useCallback(
+    (data: any) => {
+      console.log("Queue update received:", data);
+      // Refresh dashboard data when queue changes
+      fetchDashboardData();
+
+      // Update serving number immediately if provided
+      if (data.type === "NEXT_SERVED" && data.servingNumber !== undefined) {
+        setCurrentServing(data.servingNumber);
+      }
+
+      // Update queue size immediately
+      if (data.queueSize !== undefined) {
+        setTotalWaiting(data.queueSize);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // Connect to WebSocket
+  useQueueSocket({
+    companyId,
+    onUpdate: handleQueueUpdate,
+    enabled: !!companyId,
+  });
+
+  // Initial fetch on mount
   useEffect(() => {
     fetchDashboardData();
-    // Refresh every 5 seconds
-    const interval = setInterval(fetchDashboardData, 5000);
-    return () => clearInterval(interval);
+    // No more polling - WebSocket handles real-time updates!
   }, [companyId]);
 
   const handleNextCustomer = async () => {

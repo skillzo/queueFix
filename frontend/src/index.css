@@ -34,3 +34,19 @@ body {
     @apply border border-red-500;
   }
 }
+
+@keyframes slide-left {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-30px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-left {
+  animation: slide-left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
