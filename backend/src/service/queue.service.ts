@@ -696,7 +696,7 @@ export class QueueService {
           phoneNumber,
           status: QueueEntryStatus.WAITING,
         },
-        relations: [], // We'll fetch company separately
+        relations: [],
       });
 
       if (entries.length === 0) {
