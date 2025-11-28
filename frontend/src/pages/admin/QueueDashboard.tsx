@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { getDashboardStats, nextCustomer } from "../../api/companies.api";
+import {
+  getDashboardStats,
+  nextCustomer,
+  startAutopilot,
+  stopAutopilot,
+  getAutopilotStatus,
+} from "../../api/companies.api";
 import { useQueueSocket } from "../../hooks/useQueueSocket";
 
 export default function QueueDashboard() {
@@ -21,6 +27,8 @@ export default function QueueDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingNext, setProcessingNext] = useState(false);
+  const [autopilotActive, setAutopilotActive] = useState(false);
+  const [togglingAutopilot, setTogglingAutopilot] = useState(false);
 
   const fetchDashboardData = async () => {
     if (!companyId) {
@@ -54,9 +62,6 @@ export default function QueueDashboard() {
   // Handle WebSocket updates
   const handleQueueUpdate = useCallback(
     (data: any) => {
-      console.log("Queue update received:", data);
-
-      // Handle queue emptied event
       if (data.type === "QUEUE_EMPTIED") {
         setTotalWaiting(0);
         setWaitingList([]);
@@ -66,15 +71,12 @@ export default function QueueDashboard() {
         return;
       }
 
-      // Refresh dashboard data when queue changes
       fetchDashboardData();
 
-      // Update serving number immediately if provided
       if (data.type === "NEXT_SERVED" && data.servingNumber !== undefined) {
         setCurrentServing(data.servingNumber);
       }
 
-      // Update queue size immediately
       if (data.queueSize !== undefined) {
         setTotalWaiting(data.queueSize);
       }
@@ -90,10 +92,44 @@ export default function QueueDashboard() {
     enabled: !!companyId,
   });
 
-  // Initial fetch on mount
+  const fetchAutopilotStatus = async () => {
+    if (!companyId) return;
+
+    try {
+      const response = await getAutopilotStatus(companyId);
+      if (response.success && response.data) {
+        setAutopilotActive(response.data.isActive);
+      }
+    } catch (err) {
+      console.error("Error fetching autopilot status:", err);
+    }
+  };
+
+  const handleToggleAutopilot = async () => {
+    if (!companyId || togglingAutopilot) return;
+
+    try {
+      setTogglingAutopilot(true);
+      const response = autopilotActive
+        ? await stopAutopilot(companyId)
+        : await startAutopilot(companyId);
+
+      if (response.success && response.data) {
+        setAutopilotActive(response.data.isActive);
+      } else {
+        setError(response.message || "Failed to toggle autopilot");
+      }
+    } catch (err: any) {
+      setError("Failed to toggle autopilot. Please try again.");
+      console.error("Error toggling autopilot:", err);
+    } finally {
+      setTogglingAutopilot(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
-    // No more polling - WebSocket handles real-time updates!
+    fetchAutopilotStatus();
   }, [companyId]);
 
   const handleNextCustomer = async () => {
@@ -155,13 +191,16 @@ export default function QueueDashboard() {
                 </defs>
               </svg>
             </div>
+
             <h2 className="text-slate-900 text-xl font-bold leading-tight tracking-[-0.015em]">
               QueueFix
             </h2>
           </div>
 
           {/* Navigation - Hidden on mobile */}
-          <div className="hidden md:flex flex-1 justify-center gap-8"></div>
+          <div className="hidden md:flex flex-1 justify-center gap-8">
+            <p>Admin Dashboard</p>
+          </div>
 
           {/* User Actions */}
           <div className="flex items-center gap-4"></div>
@@ -182,6 +221,31 @@ export default function QueueDashboard() {
               </div>
             ) : (
               <>
+                {/* Autopilot Toggle */}
+                <div className="mb-6 flex items-center justify-between rounded-xl p-6 border border-slate-200 bg-white shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-slate-900 text-lg font-semibold">
+                      Autopilot Mode
+                    </h3>
+                    <p className="text-slate-600 text-sm">
+                      Automatically process the next customer every minute
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autopilotActive}
+                      onChange={handleToggleAutopilot}
+                      disabled={togglingAutopilot}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#2b7cee]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#2b7cee] disabled:opacity-50 disabled:cursor-not-allowed"></div>
+                    <span className="ml-3 text-sm font-medium text-slate-700">
+                      {autopilotActive ? "On" : "Off"}
+                    </span>
+                  </label>
+                </div>
+
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                   <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-slate-200 bg-white shadow-sm">

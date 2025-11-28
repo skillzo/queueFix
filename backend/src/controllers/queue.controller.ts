@@ -4,6 +4,7 @@ import { QueueService } from "../service/queue.service";
 import { ServiceResponse } from "../utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 import { requestValidation } from "../utils/validateRequest";
+import { queueCronService } from "../service/queue-cron.service";
 
 const JoinQueueSchema = z.object({
   phoneNumber: z.string().min(10).max(15),
@@ -285,6 +286,117 @@ export class QueueController {
         .json(
           ServiceResponse.failure(
             "Failed to empty queue",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
+
+  async startAutopilot(req: Request, res: Response) {
+    const { companyId } = req.params;
+
+    try {
+      const started = queueCronService.startAutopilot(companyId);
+
+      if (!started) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json(
+            ServiceResponse.failure(
+              "Autopilot is already running for this company",
+              undefined,
+              StatusCodes.BAD_REQUEST
+            )
+          );
+      }
+
+      res
+        .status(StatusCodes.OK)
+        .json(
+          ServiceResponse.success(
+            "Autopilot started successfully",
+            { companyId, isActive: true },
+            StatusCodes.OK
+          )
+        );
+    } catch (error) {
+      console.error("Error starting autopilot:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to start autopilot",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
+
+  async stopAutopilot(req: Request, res: Response) {
+    const { companyId } = req.params;
+
+    try {
+      const stopped = queueCronService.stopAutopilot(companyId);
+
+      if (!stopped) {
+        return res
+          .status(StatusCodes.BAD_REQUEST)
+          .json(
+            ServiceResponse.failure(
+              "Autopilot is not running for this company",
+              undefined,
+              StatusCodes.BAD_REQUEST
+            )
+          );
+      }
+
+      res
+        .status(StatusCodes.OK)
+        .json(
+          ServiceResponse.success(
+            "Autopilot stopped successfully",
+            { companyId, isActive: false },
+            StatusCodes.OK
+          )
+        );
+    } catch (error) {
+      console.error("Error stopping autopilot:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to stop autopilot",
+            error as Error,
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+    }
+  }
+
+  async getAutopilotStatus(req: Request, res: Response) {
+    const { companyId } = req.params;
+
+    try {
+      const isActive = queueCronService.isAutopilotActive(companyId);
+
+      res
+        .status(StatusCodes.OK)
+        .json(
+          ServiceResponse.success(
+            "Autopilot status retrieved",
+            { companyId, isActive },
+            StatusCodes.OK
+          )
+        );
+    } catch (error) {
+      console.error("Error getting autopilot status:", error);
+      res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json(
+          ServiceResponse.failure(
+            "Failed to get autopilot status",
             error as Error,
             StatusCodes.INTERNAL_SERVER_ERROR
           )

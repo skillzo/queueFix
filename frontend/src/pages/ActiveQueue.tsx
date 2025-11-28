@@ -97,6 +97,8 @@ export default function ActiveQueue() {
           : null;
       const servingNumber = statusData?.currentServing || 0;
 
+      console.log("positionResult", positionResult);
+
       let currentUserQueueNumber = "";
       if (positionResult.success && positionResult.data) {
         currentUserQueueNumber = positionResult.data.queueNumber;

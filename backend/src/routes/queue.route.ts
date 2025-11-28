@@ -61,4 +61,20 @@ router.delete(
   queueController.emptyQueue.bind(queueController)
 );
 
+// Autopilot endpoints
+router.post(
+  "/:companyId/autopilot/start",
+  queueController.startAutopilot.bind(queueController)
+);
+
+router.post(
+  "/:companyId/autopilot/stop",
+  queueController.stopAutopilot.bind(queueController)
+);
+
+router.get(
+  "/:companyId/autopilot/status",
+  queueController.getAutopilotStatus.bind(queueController)
+);
+
 export default router;

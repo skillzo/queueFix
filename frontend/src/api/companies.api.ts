@@ -131,3 +131,35 @@ export const nextCustomer = async (
   const response = await axios.post(`${API_BASE_URL}/queues/${companyId}/next`);
   return response?.data;
 };
+
+export interface AutopilotStatus {
+  companyId: string;
+  isActive: boolean;
+}
+
+export const startAutopilot = async (
+  companyId: string
+): Promise<ServiceResponse<AutopilotStatus>> => {
+  const response = await axios.post(
+    `${API_BASE_URL}/queues/${companyId}/autopilot/start`
+  );
+  return response?.data;
+};
+
+export const stopAutopilot = async (
+  companyId: string
+): Promise<ServiceResponse<AutopilotStatus>> => {
+  const response = await axios.post(
+    `${API_BASE_URL}/queues/${companyId}/autopilot/stop`
+  );
+  return response?.data;
+};
+
+export const getAutopilotStatus = async (
+  companyId: string
+): Promise<ServiceResponse<AutopilotStatus>> => {
+  const response = await axios.get(
+    `${API_BASE_URL}/queues/${companyId}/autopilot/status`
+  );
+  return response?.data;
+};

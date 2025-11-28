@@ -8,6 +8,7 @@ import cors from "cors";
 import { ENV } from "./config/ENV";
 import { createServer } from "http";
 import { queueSocketService } from "./websocket/queue.socket";
+import { queueCronService } from "./service/queue-cron.service";
 
 const app = express();
 const server = createServer(app);
