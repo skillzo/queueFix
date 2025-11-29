@@ -63,7 +63,7 @@ export default function NavigationPage() {
                   </p>
                   <div className="flex items-end justify-between gap-3">
                     <p className="font-display text-base font-normal leading-normal text-slate-500">
-                      QueueFix Restaurant, 123 Main Street
+                      Queue Smart Restaurant, 123 Main Street
                     </p>
                   </div>
                 </div>

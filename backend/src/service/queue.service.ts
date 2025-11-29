@@ -7,6 +7,7 @@ import { queueSocketService } from "../websocket/queue.socket";
 import { ServiceResponse } from "../utils/serviceResponse";
 import { StatusCodes } from "http-status-codes";
 import { randomUUID } from "crypto";
+import { dbWriteQueueService, DBWriteType } from "./db-write-queue.service";
 
 interface JoinQueueData {
   phoneNumber: string;
@@ -420,9 +421,12 @@ export class QueueService {
     }
   }
 
-  async nextCustomer(
-    companyId: string
-  ): Promise<ServiceResponse<{ servingNumber: number; entry?: QueueEntry }>> {
+  async nextCustomer(companyId: string): Promise<
+    ServiceResponse<{
+      servingNumber: number;
+      entry?: { id: string; queueNumber: string; fullName: string };
+    }>
+  > {
     try {
       const client = redisService.getClient();
 
@@ -430,9 +434,9 @@ export class QueueService {
       const servingKey = redisService.getQueueServingKey(companyId);
       const currentServing = parseInt((await client.get(servingKey)) || "0");
 
-      // Get next entry from queue
+      // Get next entry from queue (atomic - removes and returns)
       const queueListKey = redisService.getQueueListKey(companyId);
-      const entryId = await client.lIndex(queueListKey, 0);
+      const entryId = await client.lPop(queueListKey);
 
       if (!entryId) {
         return ServiceResponse.failure(
@@ -442,20 +446,32 @@ export class QueueService {
         );
       }
 
-      // Get entry from database
-      const entry = await this.queueEntryRepository.findOne({
-        where: { id: entryId },
-      });
+      // Get entry details from Redis hash (source of truth)
+      const entryKey = redisService.getQueueEntryKey(entryId, companyId);
+      const entryHash = await client.hGetAll(entryKey);
 
-      if (entry) {
-        // Mark current entry as completed
-        entry.status = QueueEntryStatus.COMPLETED;
-        entry.completedAt = new Date();
-        await this.queueEntryRepository.save(entry);
-      }
+      const entryData = entryHash.id
+        ? {
+            id: entryHash.id,
+            queueNumber: entryHash.queueNumber,
+            fullName: entryHash.fullName,
+          }
+        : null;
 
-      // Remove from Redis list
-      await client.lPop(queueListKey);
+      // Queue DB write asynchronously (non-blocking)
+      dbWriteQueueService
+        .enqueue({
+          type: DBWriteType.COMPLETE_ENTRY,
+          entryId: entryId,
+          companyId: companyId,
+          data: {
+            status: QueueEntryStatus.COMPLETED,
+            completedAt: new Date().toISOString(),
+          },
+        })
+        .catch((error) => {
+          console.error("Error enqueueing DB write:", error);
+        });
 
       // Increment serving number
       const newServingNumber = currentServing + 1;
@@ -467,18 +483,12 @@ export class QueueService {
         type: "NEXT_SERVED",
         queueSize: updatedQueueSize,
         servingNumber: newServingNumber,
-        entry: entry
-          ? {
-              id: entry.id,
-              queueNumber: entry.queueNumber,
-              fullName: entry.fullName,
-            }
-          : undefined,
+        entry: entryData || undefined,
       });
 
       return ServiceResponse.success("Next customer served", {
         servingNumber: newServingNumber,
-        entry: entry || undefined,
+        entry: entryData || undefined,
       });
     } catch (error) {
       console.error("Error serving next customer:", error);
@@ -497,7 +507,8 @@ export class QueueService {
     try {
       const client = redisService.getClient();
 
-      // Find queue entry
+      // Find queue entry (still need DB to find by phone number)
+      // This could be optimized with Redis search, but keeping for now
       const entry = await this.queueEntryRepository.findOne({
         where: {
           companyId,
@@ -514,7 +525,7 @@ export class QueueService {
         );
       }
 
-      // Remove from Redis list
+      // Remove from Redis list (Redis is source of truth)
       const queueListKey = redisService.getQueueListKey(companyId);
       await client.lRem(queueListKey, 1, entry.id);
 
@@ -522,12 +533,23 @@ export class QueueService {
       const entryKey = redisService.getQueueEntryKey(entry.id, companyId);
       await client.del(entryKey);
 
-      // Update QueueEntry status to 'left' in PostgreSQL
-      entry.status = QueueEntryStatus.LEFT;
-      entry.leftAt = new Date();
-      await this.queueEntryRepository.save(entry);
+      // Queue DB write asynchronously (non-blocking)
+      dbWriteQueueService
+        .enqueue({
+          type: DBWriteType.LEAVE_ENTRY,
+          entryId: entry.id,
+          companyId: companyId,
+          data: {
+            status: QueueEntryStatus.LEFT,
+            leftAt: new Date().toISOString(),
+          },
+        })
+        .catch((error) => {
+          console.error("Error enqueueing DB write:", error);
+          // Log but don't fail the request - Redis is source of truth
+        });
 
-      // Emit WebSocket update
+      // Emit WebSocket update (based on Redis state - real-time accurate)
       const updatedQueueSize = await client.lLen(queueListKey);
       queueSocketService.emitQueueUpdate(companyId, {
         type: "LEFT",

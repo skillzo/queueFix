@@ -9,6 +9,7 @@ import { ENV } from "./config/ENV";
 import { createServer } from "http";
 import { queueSocketService } from "./websocket/queue.socket";
 import { queueCronService } from "./service/queue-cron.service";
+import { dbWriteWorkerService } from "./service/db-write-worker.service";
 
 const app = express();
 const server = createServer(app);
@@ -40,9 +41,26 @@ async function initializeServices() {
     queueSocketService.initialize(server);
     console.log("WebSocket server initialized");
 
+    // Start DB write worker (processes async DB writes in background)
+    await dbWriteWorkerService.start();
+    console.log("DB write worker started");
+
     // Start server
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+    });
+
+    // Graceful shutdown
+    process.on("SIGTERM", () => {
+      console.log("SIGTERM received, shutting down gracefully...");
+      dbWriteWorkerService.stop();
+      process.exit(0);
+    });
+
+    process.on("SIGINT", () => {
+      console.log("SIGINT received, shutting down gracefully...");
+      dbWriteWorkerService.stop();
+      process.exit(0);
     });
   } catch (error) {
     console.error("Error initializing services:", error);

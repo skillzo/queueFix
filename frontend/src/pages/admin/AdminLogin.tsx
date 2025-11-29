@@ -32,7 +32,7 @@ export default function AdminLogin() {
               <div className="flex flex-col justify-center p-8 lg:p-12">
                 <div className="mb-6">
                   <h1 className="text-[#3A5B93] tracking-light text-[32px] font-bold leading-tight text-left">
-                    QueueFix
+                    Queue Smart
                   </h1>
                 </div>
                 <div className="mb-6">
@@ -143,7 +143,7 @@ export default function AdminLogin() {
         {/* Footer */}
         <footer className="w-full py-4 px-4 md:px-8">
           <p className="text-center text-sm text-gray-600">
-            © 2024 QueueFix. All rights reserved.
+            © 2024 Queue Smart. All rights reserved.
           </p>
         </footer>
       </div>

@@ -40,7 +40,7 @@ export default function QueueCompleted() {
             Queue Completed
           </h1>
           <p className="text-gray-600 text-base mb-8">
-            Thank you for using QueueFix. Your turn is over.
+            Thank you for using Queue Smart. Your turn is over.
           </p>
 
           {/* Rating Section */}

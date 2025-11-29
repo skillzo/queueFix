@@ -107,7 +107,7 @@ export default function AdminDashboard() {
                 <Building2 size={24} />
               </div>
               <h1 className="text-xl font-bold text-gray-900">
-                QueueFix Admin
+                Queue Smart Admin
               </h1>
             </div>
             <div className="flex items-center gap-4">

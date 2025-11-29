@@ -15,7 +15,6 @@ export default function QueueDashboard() {
   const [currentServing, setCurrentServing] = useState(0);
   const [totalWaiting, setTotalWaiting] = useState(0);
   const [servedToday, setServedToday] = useState(0);
-  const [avgProcessingTime, setAvgProcessingTime] = useState(0);
   const [waitingList, setWaitingList] = useState<
     Array<{
       queueNumber: string;
@@ -46,7 +45,6 @@ export default function QueueDashboard() {
         setCurrentServing(response.data.currentServing);
         setTotalWaiting(response.data.totalWaiting);
         setServedToday(response.data.servedToday);
-        setAvgProcessingTime(response.data.avgProcessingTimeMinutes);
         setWaitingList(response.data.queueList);
       } else {
         setError(response.message || "Failed to load dashboard data");
@@ -193,7 +191,7 @@ export default function QueueDashboard() {
             </div>
 
             <h2 className="text-slate-900 text-xl font-bold leading-tight tracking-[-0.015em]">
-              QueueFix
+              Queue Smart
             </h2>
           </div>
 
@@ -261,7 +259,7 @@ export default function QueueDashboard() {
                       Avg. Processing Time
                     </p>
                     <p className="text-slate-900 tracking-tight text-4xl font-bold leading-tight">
-                      {formatTime(avgProcessingTime)}
+                      {1} min
                     </p>
                   </div>
                   <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-slate-200 bg-white shadow-sm">

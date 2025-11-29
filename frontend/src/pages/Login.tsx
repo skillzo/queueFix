@@ -36,7 +36,7 @@ export default function Login() {
       <div className="w-full max-w-lg rounded-xl border border-gray-300 bg-white p-8 shadow-sm">
         <div className="mb-6">
           <h1 className="mb-2 text-left text-[32px] font-bold leading-tight tracking-light text-[#3A5B93]">
-            QueueFix
+            Queue Smart
           </h1>
           <p className="text-2xl font-bold leading-tight tracking-tight text-gray-900">
             Welcome Back

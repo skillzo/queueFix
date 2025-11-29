@@ -27,8 +27,7 @@ export class QueueCronService {
       return false;
     }
 
-    // Run every 1 minute: "*/1 * * * *"
-    const task = cron.schedule("*/1 * * * *", async () => {
+    const task = cron.schedule("*/3 * * * * *", async () => {
       await this.processQueue(companyId);
     });
 
