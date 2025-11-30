@@ -348,7 +348,10 @@ export class QueueService {
       const servingKey = redisService.getQueueServingKey(companyId);
       const currentServing = parseInt((await client.get(servingKey)) || "0");
 
-      const peopleAhead = Math.max(0, position - currentServing);
+      // Position is 1-indexed in the current queue
+      // If position is 1, user is next (0 people ahead)
+      // If position is 2, 1 person is ahead, etc.
+      const peopleAhead = Math.max(0, position - 1);
 
       // Get company for service time
       const company = await this.companyRepository.findOne({
@@ -751,13 +754,7 @@ export class QueueService {
             entry.id
           );
 
-          // Get current serving number
-          const servingKey = redisService.getQueueServingKey(entry.companyId);
-          const currentServing = parseInt(
-            (await client.get(servingKey)) || "0"
-          );
-
-          const peopleAhead = Math.max(0, position - currentServing);
+          const peopleAhead = Math.max(0, position - 1);
           const serviceTimeMinutes = company.serviceTimeMinutes || 1;
           const estimatedWaitMinutes = peopleAhead * serviceTimeMinutes;
 

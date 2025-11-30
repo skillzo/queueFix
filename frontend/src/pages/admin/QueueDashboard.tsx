@@ -282,7 +282,7 @@ export default function QueueDashboard() {
                           Currently Serving
                         </p>
                         <p className="text-[#2b7cee] text-7xl sm:text-8xl font-bold leading-none tracking-tighter">
-                          {currentServing}
+                          {Number(currentServing) + 1}
                         </p>
                         <p className="text-slate-500 text-base font-normal leading-normal mt-2">
                           {waitingList.length > 0
